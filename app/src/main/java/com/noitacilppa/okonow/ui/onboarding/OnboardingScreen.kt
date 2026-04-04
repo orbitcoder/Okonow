@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import com.noitacilppa.okonow.ui.AppViewModelProvider
 import com.noitacilppa.okonow.ui.components.ContinueButton
 import com.noitacilppa.okonow.ui.components.ProfileImageUploader
 import com.noitacilppa.okonow.ui.navigation.Screen
@@ -40,7 +41,7 @@ import com.noitacilppa.okonow.ui.theme.*
 @Composable
 fun OnboardingScreen(
     navController: NavController,
-    viewModel: OnboardingViewModel = viewModel()
+    viewModel: OnboardingViewModel = viewModel(factory = AppViewModelProvider.Factory)
 ) {
     val context = LocalContext.current
     var showDiscardDialog by remember { mutableStateOf(false) }
@@ -162,7 +163,6 @@ fun OnboardingScreen(
                 ProfileImageUploader(
                     imageUri = viewModel.imageUri,
                     onImagePicked = { viewModel.updateImageUri(it) }
-
                 )
 
                 Spacer(modifier = Modifier.height(48.dp))
@@ -248,7 +248,13 @@ fun OnboardingScreen(
                 ContinueButton(
                     text = "Continue",
                     enabled = viewModel.isComplete,
-                    onClick = { navController.navigate(Screen.Main.route) }
+                    onClick = {
+                        viewModel.completeOnboarding {
+                            navController.navigate(Screen.Main.route) {
+                                popUpTo(Screen.Onboarding.route) { inclusive = true }
+                            }
+                        }
+                    }
                 )
 
                 // --- Progress Indicator ---

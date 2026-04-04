@@ -40,9 +40,11 @@ import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -59,6 +61,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.noitacilppa.okonow.data.UserPreferences
 import com.noitacilppa.okonow.ui.theme.Background
 import com.noitacilppa.okonow.ui.theme.ErrorCoral
 import com.noitacilppa.okonow.ui.theme.OnSurface
@@ -93,6 +96,9 @@ private enum class ThemeModeOption(val label: String) {
 @Composable
 fun ProfileScreen(modifier: Modifier = Modifier) {
     val context = LocalContext.current
+    val userPreferences = remember { UserPreferences(context) }
+    val userName by userPreferences.userName.collectAsState(initial = "Alex Sterling")
+    
     var themeModeIndex by rememberSaveable { mutableIntStateOf(0) }
     var doNotDisturb by rememberSaveable { mutableStateOf(true) }
     var hapticFeedback by rememberSaveable { mutableStateOf(true) }
@@ -148,7 +154,7 @@ fun ProfileScreen(modifier: Modifier = Modifier) {
             verticalArrangement = Arrangement.spacedBy(32.dp)
         ) {
             Spacer(modifier = Modifier.height(8.dp))
-            ProfileHeroSection()
+            ProfileHeroSection(name = userName ?: "Alex Sterling")
             ThemeModeSection(
                 selectedIndex = themeModeIndex,
                 onSelect = { themeModeIndex = it }
@@ -172,7 +178,7 @@ fun ProfileScreen(modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun ProfileHeroSection() {
+private fun ProfileHeroSection(name: String) {
     Box(modifier = Modifier.fillMaxWidth()) {
         Box(
             modifier = Modifier
@@ -244,7 +250,7 @@ private fun ProfileHeroSection() {
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 Text(
-                    "Alex Sterling",
+                    name,
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.ExtraBold,
                     color = OnSurface

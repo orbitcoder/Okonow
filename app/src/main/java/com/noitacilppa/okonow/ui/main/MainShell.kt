@@ -35,6 +35,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.noitacilppa.okonow.ui.AppViewModelProvider
+import com.noitacilppa.okonow.ui.TodoViewModel
 import com.noitacilppa.okonow.ui.home.HomeTodayScreen
 import com.noitacilppa.okonow.ui.profile.ProfileScreen
 import com.noitacilppa.okonow.ui.task.AddTaskBottomSheet
@@ -57,7 +60,10 @@ private enum class MainTab(
 }
 
 @Composable
-fun MainShell(modifier: Modifier = Modifier) {
+fun MainShell(
+    modifier: Modifier = Modifier,
+    viewModel: TodoViewModel = viewModel(factory = AppViewModelProvider.Factory)
+) {
     var selectedTab by rememberSaveable { mutableStateOf(MainTab.TASKS.saveKey) }
     var showAddTask by remember { mutableStateOf(false) }
     val context = LocalContext.current
@@ -121,7 +127,8 @@ fun MainShell(modifier: Modifier = Modifier) {
                 MainTab.TASKS.saveKey -> HomeTodayScreen(
                     modifier = Modifier.fillMaxSize(),
                     onSettings = { selectedTab = MainTab.PROFILE.saveKey },
-                    onAddTask = { showAddTask = true }
+                    onAddTask = { showAddTask = true },
+                    viewModel = viewModel
                 )
                 MainTab.FOCUS.saveKey -> FocusScreen(Modifier.fillMaxSize())
                 MainTab.HISTORY.saveKey -> HistoryScreen(Modifier.fillMaxSize())
@@ -147,7 +154,8 @@ fun MainShell(modifier: Modifier = Modifier) {
                 )
                 AddTaskBottomSheet(
                     onDismiss = { showAddTask = false },
-                    onSave = { title, _ ->
+                    onSave = { title, description ->
+                        viewModel.addTask(title, description)
                         Toast.makeText(
                             context,
                             if (title.isBlank()) "Task saved" else "Saved: $title",
