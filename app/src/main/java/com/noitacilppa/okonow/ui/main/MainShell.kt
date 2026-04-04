@@ -1,5 +1,7 @@
 package com.noitacilppa.okonow.ui.main
 
+import android.os.Build
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -21,20 +23,27 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.noitacilppa.okonow.ui.home.HomeTodayScreen
 import com.noitacilppa.okonow.ui.profile.ProfileScreen
+import com.noitacilppa.okonow.ui.task.AddTaskBottomSheet
 import com.noitacilppa.okonow.ui.theme.Background
 import com.noitacilppa.okonow.ui.theme.OnSurface
 import com.noitacilppa.okonow.ui.theme.OnSurfaceVariant
 import com.noitacilppa.okonow.ui.theme.PrimaryPurple
+import com.noitacilppa.okonow.ui.focus.FocusScreen
+import com.noitacilppa.okonow.ui.history.HistoryScreen
 
 private enum class MainTab(
     val saveKey: String,
@@ -50,49 +59,53 @@ private enum class MainTab(
 @Composable
 fun MainShell(modifier: Modifier = Modifier) {
     var selectedTab by rememberSaveable { mutableStateOf(MainTab.TASKS.saveKey) }
+    var showAddTask by remember { mutableStateOf(false) }
+    val context = LocalContext.current
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
         containerColor = Background,
         bottomBar = {
-            Surface(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(topStart = 48.dp, topEnd = 48.dp)),
-                color = Background.copy(alpha = 0.88f),
-                tonalElevation = 8.dp
-            ) {
-                NavigationBar(
-                    containerColor = Color.Transparent,
-                    tonalElevation = 0.dp
+            if (!showAddTask) {
+                Surface(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(topStart = 48.dp, topEnd = 48.dp)),
+                    color = Background.copy(alpha = 0.88f),
+                    tonalElevation = 8.dp
                 ) {
-                    MainTab.entries.forEach { tab ->
-                        val selected = tab.saveKey == selectedTab
-                        NavigationBarItem(
-                            selected = selected,
-                            onClick = { selectedTab = tab.saveKey },
-                            icon = {
-                                Icon(
-                                    imageVector = tab.icon,
-                                    contentDescription = tab.label,
-                                    modifier = Modifier
+                    NavigationBar(
+                        containerColor = Color.Transparent,
+                        tonalElevation = 0.dp
+                    ) {
+                        MainTab.entries.forEach { tab ->
+                            val selected = tab.saveKey == selectedTab
+                            NavigationBarItem(
+                                selected = selected,
+                                onClick = { selectedTab = tab.saveKey },
+                                icon = {
+                                    Icon(
+                                        imageVector = tab.icon,
+                                        contentDescription = tab.label,
+                                        modifier = Modifier
+                                    )
+                                },
+                                label = {
+                                    Text(
+                                        tab.label.uppercase(),
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        letterSpacing = 1.sp
+                                    )
+                                },
+                                colors = NavigationBarItemDefaults.colors(
+                                    selectedIconColor = PrimaryPurple,
+                                    selectedTextColor = PrimaryPurple,
+                                    unselectedIconColor = OnSurface.copy(alpha = 0.4f),
+                                    unselectedTextColor = OnSurface.copy(alpha = 0.4f),
+                                    indicatorColor = Color.Transparent
                                 )
-                            },
-                            label = {
-                                Text(
-                                    tab.label.uppercase(),
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    letterSpacing = 1.sp
-                                )
-                            },
-                            colors = NavigationBarItemDefaults.colors(
-                                selectedIconColor = PrimaryPurple,
-                                selectedTextColor = PrimaryPurple,
-                                unselectedIconColor = OnSurface.copy(alpha = 0.4f),
-                                unselectedTextColor = OnSurface.copy(alpha = 0.4f),
-                                indicatorColor = Color.Transparent
                             )
-                        )
+                        }
                     }
                 }
             }
@@ -105,10 +118,43 @@ fun MainShell(modifier: Modifier = Modifier) {
                 .background(Background)
         ) {
             when (selectedTab) {
-                MainTab.TASKS.saveKey -> TabPlaceholder(title = "Tasks")
-                MainTab.FOCUS.saveKey -> TabPlaceholder(title = "Focus")
-                MainTab.HISTORY.saveKey -> TabPlaceholder(title = "History")
+                MainTab.TASKS.saveKey -> HomeTodayScreen(
+                    modifier = Modifier.fillMaxSize(),
+                    onSettings = { selectedTab = MainTab.PROFILE.saveKey },
+                    onAddTask = { showAddTask = true }
+                )
+                MainTab.FOCUS.saveKey -> FocusScreen(Modifier.fillMaxSize())
+                MainTab.HISTORY.saveKey -> HistoryScreen(Modifier.fillMaxSize())
                 MainTab.PROFILE.saveKey -> ProfileScreen(Modifier.fillMaxSize())
+            }
+
+            if (showAddTask) {
+                Box(
+                    modifier = Modifier
+                        .matchParentSize()
+                        .then(
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                                Modifier.blur(20.dp)
+                            } else {
+                                Modifier
+                            }
+                        )
+                        .background(
+                            Background.copy(
+                                alpha = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) 0.38f else 0.58f
+                            )
+                        )
+                )
+                AddTaskBottomSheet(
+                    onDismiss = { showAddTask = false },
+                    onSave = { title, _ ->
+                        Toast.makeText(
+                            context,
+                            if (title.isBlank()) "Task saved" else "Saved: $title",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                )
             }
         }
     }
