@@ -52,6 +52,9 @@ dependencies {
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.compose.material.icons.extended)
     
+    // Splash Screen
+    implementation(libs.androidx.core.splashscreen)
+
     // Coil & Navigation
     implementation(libs.coil.compose)
     implementation(libs.androidx.navigation.compose)

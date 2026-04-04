@@ -26,4 +26,10 @@ class UserPreferences(private val context: Context) {
             preferences[USER_NAME_KEY] = name
         }
     }
+
+    suspend fun clear() {
+        context.dataStore.edit { preferences ->
+            preferences.clear()
+        }
+    }
 }

@@ -17,9 +17,14 @@ interface TodoRepository {
     // User operations
     suspend fun insertUser(user: User): Long
     fun getUserStream(userId: Long): Flow<User?>
+
+    // Global operations
+    suspend fun clearAllData()
 }
 
-class OfflineTodoRepository(private val todoDao: TodoDao) : TodoRepository {
+class OfflineTodoRepository(private val database: TodoDatabase) : TodoRepository {
+    private val todoDao = database.todoDao()
+
     override fun getAllItemsStream(): Flow<List<TodoItem>> = todoDao.getAllItems()
     override suspend fun insertItem(item: TodoItem) = todoDao.insertItem(item)
     override suspend fun deleteItem(item: TodoItem) = todoDao.deleteItem(item)
@@ -34,4 +39,8 @@ class OfflineTodoRepository(private val todoDao: TodoDao) : TodoRepository {
 
     override suspend fun insertUser(user: User): Long = todoDao.insertUser(user)
     override fun getUserStream(userId: Long): Flow<User?> = todoDao.getUserById(userId)
+
+    override suspend fun clearAllData() {
+        database.clearAllTables()
+    }
 }

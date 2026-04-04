@@ -11,6 +11,6 @@ class OkonowApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         val database = TodoDatabase.getDatabase(this)
-        todoRepository = OfflineTodoRepository(database.todoDao())
+        todoRepository = OfflineTodoRepository(database)
     }
 }

@@ -67,4 +67,11 @@ class TodoViewModel(private val todoRepository: TodoRepository) : ViewModel() {
             todoRepository.deleteItem(item)
         }
     }
+
+    fun logout(onLogout: () -> Unit) {
+        viewModelScope.launch {
+            todoRepository.clearAllData()
+            onLogout()
+        }
+    }
 }

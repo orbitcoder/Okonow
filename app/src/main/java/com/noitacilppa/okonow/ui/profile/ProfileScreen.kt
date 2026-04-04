@@ -29,24 +29,9 @@ import androidx.compose.material.icons.filled.RocketLaunch
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.TaskAlt
 import androidx.compose.material.icons.filled.Vibration
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -60,21 +45,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.noitacilppa.okonow.data.UserPreferences
-import com.noitacilppa.okonow.ui.theme.Background
-import com.noitacilppa.okonow.ui.theme.ErrorCoral
-import com.noitacilppa.okonow.ui.theme.OnSurface
-import com.noitacilppa.okonow.ui.theme.OnSurfaceVariant
-import com.noitacilppa.okonow.ui.theme.OutlineVariant
-import com.noitacilppa.okonow.ui.theme.PrimaryContainer
-import com.noitacilppa.okonow.ui.theme.PrimaryPurple
-import com.noitacilppa.okonow.ui.theme.SecondaryTeal
-import com.noitacilppa.okonow.ui.theme.SurfaceContainer
-import com.noitacilppa.okonow.ui.theme.SurfaceContainerHigh
-import com.noitacilppa.okonow.ui.theme.SurfaceContainerHighest
-import com.noitacilppa.okonow.ui.theme.SurfaceContainerLow
-import com.noitacilppa.okonow.ui.theme.TertiaryPink
+import com.noitacilppa.okonow.ui.AppViewModelProvider
+import com.noitacilppa.okonow.ui.TodoViewModel
+import com.noitacilppa.okonow.ui.theme.*
+import kotlinx.coroutines.launch
 
 /** Unified corner radius for profile cards (theme previews, interactions panel, stats) — matches design ~24dp. */
 private val ProfileCardCorner = 32.dp
@@ -94,10 +71,14 @@ private enum class ThemeModeOption(val label: String) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ProfileScreen(modifier: Modifier = Modifier) {
+fun ProfileScreen(
+    modifier: Modifier = Modifier,
+    todoViewModel: TodoViewModel = viewModel(factory = AppViewModelProvider.Factory)
+) {
     val context = LocalContext.current
     val userPreferences = remember { UserPreferences(context) }
-    val userName by userPreferences.userName.collectAsState(initial = "Alex Sterling")
+    val userName by userPreferences.userName.collectAsState(initial = "")
+    val scope = rememberCoroutineScope()
     
     var themeModeIndex by rememberSaveable { mutableIntStateOf(0) }
     var doNotDisturb by rememberSaveable { mutableStateOf(true) }
@@ -154,7 +135,7 @@ fun ProfileScreen(modifier: Modifier = Modifier) {
             verticalArrangement = Arrangement.spacedBy(32.dp)
         ) {
             Spacer(modifier = Modifier.height(8.dp))
-            ProfileHeroSection(name = userName ?: "Alex Sterling")
+            ProfileHeroSection(name = userName ?: "Guest")
             ThemeModeSection(
                 selectedIndex = themeModeIndex,
                 onSelect = { themeModeIndex = it }
@@ -170,7 +151,12 @@ fun ProfileScreen(modifier: Modifier = Modifier) {
             StatsRow()
             SignOutButton(
                 onClick = {
-                    Toast.makeText(context, "Sign out (not wired yet)", Toast.LENGTH_SHORT).show()
+                    scope.launch {
+                        userPreferences.clear()
+                        todoViewModel.logout {
+                            // Navigation logic is handled in OkonowNavHost
+                        }
+                    }
                 }
             )
         }
@@ -279,12 +265,12 @@ private fun ThemeModeSection(selectedIndex: Int, onSelect: (Int) -> Unit) {
                     label = option.label,
                     selected = index == selectedIndex,
                     accentBrush = when (index) {
-                        1 -> Brush.linearGradient(listOf(Color(0xFF3B82F6).copy(alpha = 0.15f), Color.Transparent))
-                        2 -> Brush.linearGradient(listOf(Color(0xFF10B981).copy(alpha = 0.15f), Color.Transparent))
-                        else -> Brush.linearGradient(listOf(Color.White.copy(alpha = 0.1f), Color.Transparent))
+                        1 -> Brush.linearGradient(listOf(Color(0xFF3B82F6), Color(0xFF6366F1)))
+                        2 -> Brush.linearGradient(listOf(Color(0xFF10B981), Color(0xFF34D399)))
+                        else -> Brush.linearGradient(listOf(PrimaryPurple, TertiaryPink))
                     },
-                    onClick = { onSelect(index) },
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
+                    onClick = { onSelect(index) }
                 )
             }
         }
@@ -296,70 +282,39 @@ private fun ThemeModeCard(
     label: String,
     selected: Boolean,
     accentBrush: Brush,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
 ) {
-    val previewShape = RoundedCornerShape(ProfileCardCorner)
     Column(
-        modifier = modifier.clickable(onClick = onClick),
+        modifier = modifier
+            .clip(RoundedCornerShape(20.dp))
+            .background(if (selected) SurfaceContainerHighest else SurfaceContainerLow)
+            .border(
+                width = 1.5.dp,
+                brush = if (selected) accentBrush else Brush.linearGradient(listOf(Color.Transparent, Color.Transparent)),
+                shape = RoundedCornerShape(20.dp)
+            )
+            .clickable(onClick = onClick)
+            .padding(12.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(10.dp)
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .aspectRatio(4f / 5f)
-                .then(if (selected) Modifier.padding(4.dp) else Modifier)
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .clip(previewShape)
-                    .background(SurfaceContainerHigh)
-                    .border(
-                        width = if (selected) 2.dp else 1.dp,
-                        color = if (selected) PrimaryPurple
-                        else OutlineVariant.copy(alpha = 0.4f),
-                        shape = previewShape
-                    )
-                    .padding(12.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(accentBrush)
+                .aspectRatio(1.2f)
+                .clip(RoundedCornerShape(12.dp))
+                .background(
+                    brush = accentBrush,
+                    alpha = if (selected) 1f else 0.15f
                 )
-                Column(
-                    modifier = Modifier.fillMaxSize(),
-                    verticalArrangement = Arrangement.Center,
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth(0.95f)
-                            .height(8.dp)
-                            .clip(RoundedCornerShape(999.dp))
-                            .background(OnSurfaceVariant.copy(alpha = if (selected) 0.2f else 0.12f))
-                    )
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth(0.55f)
-                            .height(8.dp)
-                            .clip(RoundedCornerShape(999.dp))
-                            .background(OnSurfaceVariant.copy(alpha = if (selected) 0.2f else 0.12f))
-                    )
-                }
-            }
-        }
+        )
         Text(
-            label.uppercase(),
+            label,
             fontSize = 10.sp,
             fontWeight = FontWeight.Bold,
-            letterSpacing = 1.2.sp,
-            color = if (selected) PrimaryPurple else OnSurfaceVariant,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.fillMaxWidth()
+            color = if (selected) OnSurface else OnSurfaceVariant,
+            textAlign = TextAlign.Center
         )
     }
 }
@@ -373,64 +328,34 @@ private fun InteractionsSection(
     highPerformance: Boolean,
     onHighPerformance: (Boolean) -> Unit
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp), modifier = Modifier.fillMaxWidth()) {
         SectionLabel("Interactions")
-        val panelShape = RoundedCornerShape(ProfileCardCorner)
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(panelShape)
+                .clip(RoundedCornerShape(ProfileCardCorner))
                 .background(SurfaceContainerLow)
+                .padding(8.dp)
         ) {
             InteractionRow(
-                title = "Do Not Disturb",
-                subtitle = "Auto-mute during focus sessions",
-                icon = {
-                    Icon(
-                        Icons.Default.DoNotDisturbOn,
-                        contentDescription = null,
-                        tint = PrimaryPurple,
-                        modifier = Modifier.size(22.dp)
-                    )
-                },
-                iconContainerColor = PrimaryPurple.copy(alpha = 0.1f),
+                icon = Icons.Default.DoNotDisturbOn,
+                label = "Do Not Disturb",
                 checked = doNotDisturb,
-                onCheckedChange = onDoNotDisturb,
-                trackChecked = PrimaryPurple
+                onCheckedChange = onDoNotDisturb
             )
-            HorizontalDivider(color = Color.White.copy(alpha = 0.05f), thickness = 1.dp)
+            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = OutlineVariant.copy(alpha = 0.1f))
             InteractionRow(
-                title = "Haptic Feedback",
-                subtitle = "Tactile response on task completion",
-                icon = {
-                    Icon(
-                        Icons.Default.Vibration,
-                        contentDescription = null,
-                        tint = SecondaryTeal,
-                        modifier = Modifier.size(22.dp)
-                    )
-                },
-                iconContainerColor = SecondaryTeal.copy(alpha = 0.1f),
+                icon = Icons.Default.Vibration,
+                label = "Haptic Feedback",
                 checked = hapticFeedback,
-                onCheckedChange = onHapticFeedback,
-                trackChecked = SecondaryTeal
+                onCheckedChange = onHapticFeedback
             )
-            HorizontalDivider(color = Color.White.copy(alpha = 0.05f), thickness = 1.dp)
+            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = OutlineVariant.copy(alpha = 0.1f))
             InteractionRow(
-                title = "High Performance",
-                subtitle = "Optimized refresh rate for dashboard",
-                icon = {
-                    Icon(
-                        Icons.Default.RocketLaunch,
-                        contentDescription = null,
-                        tint = TertiaryPink,
-                        modifier = Modifier.size(22.dp)
-                    )
-                },
-                iconContainerColor = TertiaryPink.copy(alpha = 0.1f),
+                icon = Icons.Default.RocketLaunch,
+                label = "High Performance",
                 checked = highPerformance,
-                onCheckedChange = onHighPerformance,
-                trackChecked = TertiaryPink
+                onCheckedChange = onHighPerformance
             )
         }
     }
@@ -438,55 +363,28 @@ private fun InteractionsSection(
 
 @Composable
 private fun InteractionRow(
-    title: String,
-    subtitle: String,
-    icon: @Composable () -> Unit,
-    iconContainerColor: Color,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    label: String,
     checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit,
-    trackChecked: Color
+    onCheckedChange: (Boolean) -> Unit
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(
-                Brush.verticalGradient(
-                    listOf(Color.White.copy(alpha = 0.05f), Color.Transparent)
-                )
-            )
-            .padding(20.dp),
+            .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
+        horizontalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
-            modifier = Modifier.weight(1f)
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(CircleShape)
-                    .background(iconContainerColor),
-                contentAlignment = Alignment.Center
-            ) {
-                icon()
-            }
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(title, color = OnSurface, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                Text(subtitle, color = OnSurfaceVariant, fontSize = 12.sp)
-            }
-        }
+        Icon(icon, contentDescription = null, tint = OnSurfaceVariant, modifier = Modifier.size(24.dp))
+        Text(label, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge, color = OnSurface)
         Switch(
             checked = checked,
             onCheckedChange = onCheckedChange,
             colors = SwitchDefaults.colors(
                 checkedThumbColor = Color.White,
-                uncheckedThumbColor = Color.White,
-                checkedTrackColor = trackChecked,
-                uncheckedTrackColor = SurfaceContainerHighest,
-                uncheckedBorderColor = Color.Transparent,
-                checkedBorderColor = Color.Transparent
+                checkedTrackColor = PrimaryPurple,
+                uncheckedThumbColor = OnSurfaceVariant,
+                uncheckedTrackColor = SurfaceContainerHighest
             )
         )
     }
@@ -499,15 +397,17 @@ private fun StatsRow() {
         horizontalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         StatCard(
-            icon = { Icon(Icons.Default.TaskAlt, null, tint = PrimaryPurple, modifier = Modifier.size(32.dp)) },
-            value = "412",
-            label = "Tasks Completed",
+            label = "Completed",
+            value = "128",
+            icon = Icons.Default.TaskAlt,
+            color = SecondaryTeal,
             modifier = Modifier.weight(1f)
         )
         StatCard(
-            icon = { Icon(Icons.Default.HourglassEmpty, null, tint = SecondaryTeal, modifier = Modifier.size(32.dp)) },
-            value = "128h",
-            label = "Focused Time",
+            label = "Focused",
+            value = "42h",
+            icon = Icons.Default.HourglassEmpty,
+            color = PrimaryPurple,
             modifier = Modifier.weight(1f)
         )
     }
@@ -515,65 +415,23 @@ private fun StatsRow() {
 
 @Composable
 private fun StatCard(
-    icon: @Composable () -> Unit,
-    value: String,
     label: String,
+    value: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    color: Color,
     modifier: Modifier = Modifier
 ) {
-    val shape = RoundedCornerShape(ProfileCardCorner)
-    Column(
+    Box(
         modifier = modifier
-            .clip(shape)
-            .background(SurfaceContainerHigh)
-            .border(1.dp, OutlineVariant.copy(alpha = 0.15f), shape)
-            .padding(24.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+            .clip(RoundedCornerShape(ProfileCardCorner))
+            .background(SurfaceContainerLow)
+            .padding(24.dp)
     ) {
-        icon()
-        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(
-                value,
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Black,
-                color = OnSurface
-            )
-            Text(
-                label.uppercase(),
-                fontSize = 10.sp,
-                fontWeight = FontWeight.Bold,
-                letterSpacing = 1.5.sp,
-                color = OnSurfaceVariant
-            )
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(28.dp))
+            Text(value, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Black, color = OnSurface)
+            Text(label, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = OnSurfaceVariant)
         }
-    }
-}
-
-@Composable
-private fun SignOutButton(onClick: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(999.dp))
-            .border(1.dp, ErrorCoral.copy(alpha = 0.35f), RoundedCornerShape(999.dp))
-            .background(SurfaceContainer)
-            .clickable(onClick = onClick)
-            .padding(vertical = 18.dp),
-        horizontalArrangement = Arrangement.Center,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(
-            Icons.AutoMirrored.Filled.Logout,
-            contentDescription = null,
-            tint = ErrorCoral,
-            modifier = Modifier.size(22.dp)
-        )
-        Spacer(modifier = Modifier.width(8.dp))
-        Text(
-            "Sign Out of Okonow",
-            color = ErrorCoral,
-            fontWeight = FontWeight.Bold,
-            fontSize = 16.sp
-        )
     }
 }
 
@@ -581,10 +439,28 @@ private fun SignOutButton(onClick: () -> Unit) {
 private fun SectionLabel(text: String) {
     Text(
         text.uppercase(),
-        style = MaterialTheme.typography.labelSmall,
-        fontWeight = FontWeight.Bold,
+        style = MaterialTheme.typography.labelLarge,
+        fontWeight = FontWeight.Black,
+        color = OnSurface.copy(alpha = 0.4f),
         letterSpacing = 2.sp,
-        color = OnSurfaceVariant,
         modifier = Modifier.padding(horizontal = 8.dp)
     )
+}
+
+@Composable
+private fun SignOutButton(onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(ProfileCardCorner))
+            .background(SurfaceContainerLow)
+            .clickable(onClick = onClick)
+            .padding(24.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.Center
+    ) {
+        Icon(Icons.AutoMirrored.Filled.Logout, contentDescription = null, tint = ErrorCoral, modifier = Modifier.size(24.dp))
+        Spacer(modifier = Modifier.width(12.dp))
+        Text("Sign Out", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = ErrorCoral)
+    }
 }

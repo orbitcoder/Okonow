@@ -132,7 +132,10 @@ fun MainShell(
                 )
                 MainTab.FOCUS.saveKey -> FocusScreen(Modifier.fillMaxSize())
                 MainTab.HISTORY.saveKey -> HistoryScreen(Modifier.fillMaxSize())
-                MainTab.PROFILE.saveKey -> ProfileScreen(Modifier.fillMaxSize())
+                MainTab.PROFILE.saveKey -> ProfileScreen(
+                    modifier = Modifier.fillMaxSize(),
+                    todoViewModel = viewModel
+                )
             }
 
             if (showAddTask) {
