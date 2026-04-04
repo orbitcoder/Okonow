@@ -45,7 +45,6 @@ fun HomeTodayScreen(
     val context = LocalContext.current
     val userPreferences = remember { UserPreferences(context) }
     val userName by userPreferences.userName.collectAsState(initial = "Alex")
-    val cardShape = RoundedCornerShape(HomeCardCorner)
     
     val uiState by viewModel.uiState.collectAsState()
     val tasks = uiState.tasks
@@ -61,7 +60,8 @@ fun HomeTodayScreen(
     }
 
     val tasksCompletedToday = tasks.count { it.task.isCompleted }
-    val progress = if (tasks.isEmpty()) 1.0f else tasksCompletedToday.toFloat() / tasks.size
+    val totalTasksToday = tasks.size
+    val progress = if (tasks.isEmpty()) 1.0f else tasksCompletedToday.toFloat() / totalTasksToday
 
     Box(modifier = modifier.fillMaxSize()) {
         Column(
@@ -123,6 +123,7 @@ fun HomeTodayScreen(
                 TodayProgressSection(
                     progress = progress,
                     tasksCompletedToday = tasksCompletedToday,
+                    totalTasksToday = totalTasksToday,
                     hasTasks = hasTasks
                 )
 
@@ -138,71 +139,44 @@ fun HomeTodayScreen(
                             Text(
                                 "Today's Focus",
                                 style = MaterialTheme.typography.headlineSmall,
-                                fontWeight = FontWeight.Bold,
+                                fontWeight = FontWeight.Black,
                                 color = OnSurface
                             )
                             Text(
                                 "See all",
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.labelLarge,
                                 color = PrimaryPurple,
-                                modifier = Modifier.clickable {
-                                    onSeeAllTasks()
-                                    Toast.makeText(context, "Full task list coming soon", Toast.LENGTH_SHORT).show()
-                                }
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .clickable { onSeeAllTasks() }
+                                    .padding(horizontal = 8.dp, vertical = 4.dp)
                             )
                         }
-                    }
 
-                    if (hasTasks) {
-                        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                            tasks.forEach { taskDetailed ->
-                                val task = taskDetailed.task
-                                GlossyTaskCard(
-                                    title = task.title,
-                                    subtitle = task.details,
-                                    priorityLabel = task.priority.name,
-                                    priorityBackground = PrimaryPurple.copy(alpha = 0.1f),
-                                    priorityText = PrimaryFixedDim,
-                                    priorityBorder = PrimaryPurple.copy(alpha = 0.2f),
-                                    subtasksDone = taskDetailed.subtasks.count { it.isCompleted },
-                                    subtasksTotal = taskDetailed.subtasks.size.coerceAtLeast(1),
-                                    category = "Task",
-                                    categoryColor = TertiaryPink,
-                                    checkboxAccent = PrimaryPurple,
-                                    shape = cardShape,
-                                    initialChecked = task.isCompleted,
-                                    onCheckedChange = { viewModel.toggleTaskDone(task) }
-                                )
-                            }
+                        tasks.take(3).forEach { taskItem ->
+                            val task = taskItem.task
+                            GlossyTaskCard(
+                                title = task.title,
+                                subtitle = task.details,
+                                priorityLabel = task.priority.name,
+                                priorityBackground = PrimaryPurple.copy(alpha = 0.1f),
+                                priorityText = PrimaryPurple,
+                                priorityBorder = PrimaryPurple.copy(alpha = 0.2f),
+                                subtasksDone = 0,
+                                subtasksTotal = 0,
+                                category = "Focus",
+                                categoryColor = SecondaryTeal,
+                                checkboxAccent = PrimaryPurple,
+                                shape = RoundedCornerShape(24.dp),
+                                initialChecked = task.isCompleted,
+                                onCheckedChange = { viewModel.toggleTaskDone(task) }
+                            )
                         }
                     } else {
-                        EmptyTasksState(
-                            onAddTask = onAddTask,
-                            onToggleDemo = { /* Demo toggle removed as we have real data now */ }
-                        )
-                    }
-                }
-
-                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    Text(
-                        "Team Activity",
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = OnSurface,
-                        modifier = Modifier.padding(horizontal = 8.dp)
-                    )
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .horizontalScroll(rememberScrollState()),
-                        horizontalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        Spacer(modifier = Modifier.width(0.dp))
-                        teamMembers.forEach { member ->
-                            TeamAvatarChip(member = member)
-                        }
-                        Spacer(modifier = Modifier.width(8.dp))
+                        EmptyTasksState(onAddTask = onAddTask, onToggleDemo = {
+                            Toast.makeText(context, "Demo toggle coming soon", Toast.LENGTH_SHORT).show()
+                        })
                     }
                 }
 

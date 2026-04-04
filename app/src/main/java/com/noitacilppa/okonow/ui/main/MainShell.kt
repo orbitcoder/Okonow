@@ -123,20 +123,20 @@ fun MainShell(
                 .padding(padding)
                 .background(Background)
         ) {
-            when (selectedTab) {
-                MainTab.TASKS.saveKey -> HomeTodayScreen(
-                    modifier = Modifier.fillMaxSize(),
-                    onSettings = { selectedTab = MainTab.PROFILE.saveKey },
-                    onAddTask = { showAddTask = true },
-                    viewModel = viewModel
-                )
-                MainTab.FOCUS.saveKey -> FocusScreen(Modifier.fillMaxSize())
-                MainTab.HISTORY.saveKey -> HistoryScreen(Modifier.fillMaxSize())
-                MainTab.PROFILE.saveKey -> ProfileScreen(
-                    modifier = Modifier.fillMaxSize(),
-                    todoViewModel = viewModel
-                )
-            }
+                when (selectedTab) {
+                    MainTab.TASKS.saveKey -> HomeTodayScreen(
+                        modifier = Modifier.fillMaxSize(),
+                        onSettings = { selectedTab = MainTab.PROFILE.saveKey },
+                        onAddTask = { showAddTask = true },
+                        viewModel = viewModel
+                    )
+                    MainTab.FOCUS.saveKey -> FocusScreen(Modifier.fillMaxSize())
+                    MainTab.HISTORY.saveKey -> HistoryScreen(Modifier.fillMaxSize())
+                    MainTab.PROFILE.saveKey -> ProfileScreen(
+                        modifier = Modifier.fillMaxSize(),
+                        todoViewModel = viewModel
+                    )
+                }
 
             if (showAddTask) {
                 Box(
