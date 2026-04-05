@@ -3,6 +3,7 @@ package com.noitacilppa.okonow.ui.home
 import android.widget.Toast
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -37,8 +38,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.Calendar
 
-/** Stitch Home / Today — header avatar. */
-private const val HomeHeaderAvatarUrl =
+/** Stitch Home / Today — header avatar fallback. */
+private const val HomeHeaderAvatarFallbackUrl =
     "https://lh3.googleusercontent.com/aida-public/AB6AXuBX2iavuLwaAuBEShstIw4wW3UfA5FwCFXmdCe2q-pg_F3nyallzVK6gkG_iYYfMwAeNlYpHxctHGPqm_qp49-Q1BHHxS8B166fi11QGKsPLW3Y92P6uci6W7FqKybhdoN9vAtNooxwRbt6BFQbK2BwbSn3MxsL_wzg0QrH57s0n4zKnFkjCq_PYGOz5oOQl7Zb9klTVcyOyXlguCNQNwH8IQ7CV5vOT_PPeEQRSRDQKjEoUYYmKvaRwlefMX1deprVMt6VcLXE8NA"
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -55,6 +56,7 @@ fun HomeTodayScreen(
     val scope = rememberCoroutineScope()
     val userPreferences = remember { UserPreferences(context) }
     val userName by userPreferences.userName.collectAsState(initial = "Alex")
+    val userImageUri by userPreferences.userImageUri.collectAsState(initial = null)
     
     val uiState by viewModel.uiState.collectAsState()
     val allTasks = uiState.tasks
@@ -93,50 +95,45 @@ fun HomeTodayScreen(
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
         ) {
-            TopAppBar(
-                title = {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(40.dp)
-                                .clip(CircleShape)
-                                .border(2.dp, PrimaryPurple.copy(alpha = 0.2f), CircleShape)
-                                .padding(2.dp)
-                                .clip(CircleShape)
-                        ) {
-                            AsyncImage(
-                                model = HomeHeaderAvatarUrl,
-                                contentDescription = "User profile",
-                                modifier = Modifier.fillMaxSize(),
-                                contentScale = ContentScale.Crop
-                            )
-                        }
-                        Column {
-                            Text(
-                                "Okonow",
-                                style = MaterialTheme.typography.headlineSmall,
-                                fontWeight = FontWeight.Bold,
-                                color = OnSurface
-                            )
-                            Text(
-                                "$greeting, ${userName ?: "Alex"}",
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = OnSurfaceVariant,
-                                letterSpacing = 0.5.sp
-                            )
-                        }
-                    }
-                },
-                actions = {
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Background.copy(alpha = 0.92f)
-                )
-            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Background.copy(alpha = 0.92f))
+                    .padding(horizontal = 24.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .border(2.dp, PrimaryPurple.copy(alpha = 0.2f), CircleShape)
+                        .padding(2.dp)
+                        .clip(CircleShape)
+                ) {
+                    AsyncImage(
+                        model = userImageUri ?: HomeHeaderAvatarFallbackUrl,
+                        contentDescription = "User profile",
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Crop
+                    )
+                }
+                Column {
+                    Text(
+                        "Okonow",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = OnSurface
+                    )
+                    Text(
+                        "$greeting, ${userName ?: "Alex"}",
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = OnSurfaceVariant,
+                        letterSpacing = 0.5.sp
+                    )
+                }
+            }
 
             Column(
                 modifier = Modifier
@@ -296,27 +293,21 @@ fun HomeTodayScreen(
                         }
                     }
                 }
-
-                QuoteMotivationCard(shape = RoundedCornerShape(HomeCardCorner))
             }
         }
 
-        if (hasTasks) {
-            FloatingActionButton(
-                onClick = onAddTask,
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(end = 24.dp, bottom = 25.dp),
-                containerColor = PrimaryPurple,
-                contentColor = Color(0xFF330066),
-                elevation = FloatingActionButtonDefaults.elevation(
-                    defaultElevation = 8.dp,
-                    pressedElevation = 8.dp
-                ),
-                shape = CircleShape
-            ) {
-                Icon(Icons.Default.Add, contentDescription = "Add task", modifier = Modifier.size(28.dp))
-            }
+        // Floating Action Button
+        FloatingActionButton(
+            onClick = onAddTask,
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(24.dp),
+            containerColor = PrimaryPurple,
+            contentColor = Color.White,
+            shape = CircleShape,
+            elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 8.dp)
+        ) {
+            Icon(Icons.Default.Add, contentDescription = "Add Task")
         }
     }
 }

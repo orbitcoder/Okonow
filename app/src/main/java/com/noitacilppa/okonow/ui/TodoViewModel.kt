@@ -19,7 +19,8 @@ import java.util.Date
 
 data class TodoUiState(
     val itemList: List<TodoItem> = listOf(),
-    val tasks: List<TaskDetailed> = listOf()
+    val tasks: List<TaskDetailed> = listOf(),
+    val activeTaskId: Long? = null
 )
 
 class TodoViewModel(
@@ -29,14 +30,21 @@ class TodoViewModel(
 
     // For now, we use a hardcoded userId 1. In a real app, this would come from a Session/User manager.
     private val currentUserId = 1L
+    
+    private val _activeTaskId = kotlinx.coroutines.flow.MutableStateFlow<Long?>(null)
+    val activeTaskId: StateFlow<Long?> = _activeTaskId
 
     val uiState: StateFlow<TodoUiState> =
-        todoRepository.getTasksDetailedStream(currentUserId).map { TodoUiState(tasks = it) }
-            .stateIn(
-                scope = viewModelScope,
-                started = SharingStarted.WhileSubscribed(5_000L),
-                initialValue = TodoUiState()
-            )
+        kotlinx.coroutines.flow.combine(
+            todoRepository.getTasksDetailedStream(currentUserId),
+            _activeTaskId
+        ) { tasks, activeId -> 
+            TodoUiState(tasks = tasks, activeTaskId = activeId) 
+        }.stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000L),
+            initialValue = TodoUiState()
+        )
 
     fun addTask(
         title: String,
@@ -167,5 +175,9 @@ class TodoViewModel(
             todoRepository.clearAllData()
             onLogout()
         }
+    }
+
+    fun setActiveTask(taskId: Long?) {
+        _activeTaskId.value = taskId
     }
 }

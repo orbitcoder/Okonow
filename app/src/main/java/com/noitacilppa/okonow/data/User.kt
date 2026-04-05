@@ -10,6 +10,7 @@ import java.util.Date
 data class User(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val name: String,
+    val profileImageUri: String? = null,
     val createdAt: Date = Date(),
     val updatedAt: Date = Date()
 )

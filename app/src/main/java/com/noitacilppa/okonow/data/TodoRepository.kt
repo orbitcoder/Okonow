@@ -1,6 +1,8 @@
 package com.noitacilppa.okonow.data
 
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.withContext
 
 interface TodoRepository {
     fun getAllItemsStream(): Flow<List<TodoItem>>
@@ -51,6 +53,8 @@ class OfflineTodoRepository(private val database: TodoDatabase) : TodoRepository
     override fun getUserStream(userId: Long): Flow<User?> = todoDao.getUserById(userId)
 
     override suspend fun clearAllData() {
-        database.clearAllTables()
+        withContext(Dispatchers.IO) {
+            database.clearAllTables()
+        }
     }
 }

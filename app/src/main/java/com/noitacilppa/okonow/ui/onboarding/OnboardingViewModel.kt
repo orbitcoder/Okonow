@@ -11,6 +11,7 @@ import androidx.lifecycle.viewModelScope
 import com.noitacilppa.okonow.data.User
 import com.noitacilppa.okonow.data.TodoRepository
 import com.noitacilppa.okonow.data.UserPreferences
+import com.noitacilppa.okonow.util.ImageUtils
 import kotlinx.coroutines.launch
 
 class OnboardingViewModel(
@@ -37,14 +38,21 @@ class OnboardingViewModel(
 
     fun completeOnboarding(onComplete: () -> Unit) {
         viewModelScope.launch {
+            // Save image to internal storage if it exists
+            val internalImagePath = imageUri?.let { uri ->
+                ImageUtils.saveImageToInternalStorage(getApplication(), uri)
+            }
+
             // Save to DataStore for quick access
             userPreferences.saveUserName(name)
+            userPreferences.saveUserImageUri(internalImagePath)
             
             // Save to Room database as the primary user (ID 1)
             todoRepository.insertUser(
                 User(
                     id = 1L,
-                    name = name
+                    name = name,
+                    profileImageUri = internalImagePath
                 )
             )
             onComplete()

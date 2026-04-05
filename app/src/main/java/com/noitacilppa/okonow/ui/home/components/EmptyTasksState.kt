@@ -99,15 +99,6 @@ fun EmptyTasksState(onAddTask: () -> Unit, onToggleDemo: () -> Unit) {
                 Text("Add New Task", fontWeight = FontWeight.Bold)
             }
 
-            Text(
-                "Toggle Demo State",
-                fontSize = 12.sp,
-                color = OnSurfaceVariant,
-                modifier = Modifier
-                    .padding(top = 16.dp)
-                    .clickable { onToggleDemo() },
-                textDecoration = TextDecoration.Underline
-            )
         }
     }
 }
