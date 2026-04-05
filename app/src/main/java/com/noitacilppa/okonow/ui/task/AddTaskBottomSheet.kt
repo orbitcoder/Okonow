@@ -58,6 +58,7 @@ import com.noitacilppa.okonow.ui.task.components.SuggestionChip
 import com.noitacilppa.okonow.ui.task.components.TaskActionButtons
 import com.noitacilppa.okonow.ui.task.components.TaskDescriptionInput
 import com.noitacilppa.okonow.ui.task.components.TaskHeader
+import com.noitacilppa.okonow.ui.components.OkonowCalendar
 import com.noitacilppa.okonow.ui.task.components.TaskTitleInput
 import com.noitacilppa.okonow.ui.theme.Background
 import com.noitacilppa.okonow.ui.theme.PrimaryPurple
@@ -307,27 +308,20 @@ fun AddTaskBottomSheet(
         }
         
         if (showDatePicker) {
-            val datePickerState = rememberDatePickerState(
-                initialSelectedDateMillis = selectedDateMillis ?: System.currentTimeMillis()
-            )
-            DatePickerDialog(
-                onDismissRequest = { showDatePicker = false },
-                confirmButton = {
-                    TextButton(onClick = {
-                        selectedDateMillis = datePickerState.selectedDateMillis
-                        showDatePicker = false
-                    }) {
-                        Text("OK")
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = { showDatePicker = false }) {
-                        Text("Cancel")
-                    }
-                }
-            ) {
-                DatePicker(state = datePickerState)
+            val initialDate = remember(selectedDateMillis) {
+                selectedDateMillis?.let {
+                    java.time.Instant.ofEpochMilli(it).atZone(java.time.ZoneId.systemDefault()).toLocalDate()
+                } ?: java.time.LocalDate.now()
             }
+            
+            OkonowCalendar(
+                selectedDate = initialDate,
+                onDateSelected = { localDate ->
+                    selectedDateMillis = localDate.atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
+                },
+                onDismissRequest = { showDatePicker = false },
+                hazeState = hazeState
+            )
         }
     }
 
