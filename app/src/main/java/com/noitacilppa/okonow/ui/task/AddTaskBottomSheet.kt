@@ -206,6 +206,26 @@ fun AddTaskBottomSheet(
                                 onSubtaskChange = { index, newValue -> subtasks[index] = newValue },
                                 onAddSubtask = { subtasks.add("") },
                                 onToggleMode = { 
+                                    if (!isSubtaskMode) {
+                                        // Switching from Description to Subtasks
+                                        val plainText = description.trim()
+                                        if (plainText.isNotEmpty()) {
+                                            if (subtasks.isNotEmpty() && subtasks[0].isBlank()) {
+                                                subtasks[0] = plainText
+                                            } else {
+                                                subtasks.add(0, plainText)
+                                            }
+                                            description = ""
+                                        }
+                                    } else {
+                                        // Switching from Subtasks to Description
+                                        val combined = subtasks.filter { it.isNotBlank() }.joinToString("\n")
+                                        if (combined.isNotEmpty()) {
+                                            description = combined
+                                            subtasks.clear()
+                                        }
+                                    }
+
                                     isSubtaskMode = !isSubtaskMode 
                                     if (isSubtaskMode && subtasks.isEmpty()) {
                                         subtasks.add("")
