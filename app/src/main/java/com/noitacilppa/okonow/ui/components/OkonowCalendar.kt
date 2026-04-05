@@ -242,7 +242,7 @@ fun OkonowCalendar(
                         ),
                         shape = RoundedCornerShape(16.dp)
                     ) {
-                        Text("SELECT DATE", fontWeight = FontWeight.Bold)
+                        Text("DONE", fontWeight = FontWeight.Bold)
                     }
                 }
             }

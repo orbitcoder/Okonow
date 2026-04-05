@@ -21,6 +21,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -28,18 +30,25 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Event
 import androidx.compose.material.icons.filled.Label
-import androidx.compose.material.icons.filled.PriorityHigh
 import androidx.compose.material.icons.outlined.AutoAwesome
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -57,7 +66,9 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.noitacilppa.okonow.ui.task.components.BottomSheetHandle
 import com.noitacilppa.okonow.ui.task.components.DetailPill
 import com.noitacilppa.okonow.ui.task.components.SuggestionChip
@@ -67,9 +78,13 @@ import com.noitacilppa.okonow.ui.task.components.TaskHeader
 import com.noitacilppa.okonow.ui.components.OkonowCalendar
 import com.noitacilppa.okonow.ui.task.components.TaskTitleInput
 import com.noitacilppa.okonow.ui.theme.Background
+import com.noitacilppa.okonow.ui.theme.OnSurface
+import com.noitacilppa.okonow.ui.theme.OnSurfaceVariant
 import com.noitacilppa.okonow.ui.theme.PrimaryPurple
 import com.noitacilppa.okonow.ui.theme.SecondaryTeal
 import com.noitacilppa.okonow.ui.theme.SurfaceContainer
+import com.noitacilppa.okonow.ui.theme.SurfaceVariant
+import com.noitacilppa.okonow.ui.theme.TertiaryPink
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.hazeEffect
@@ -98,6 +113,9 @@ fun AddTaskBottomSheet(
     
     var selectedDateMillis by remember { mutableStateOf<Long?>(System.currentTimeMillis()) }
     var showDatePicker by remember { mutableStateOf(false) }
+
+    var selectedTag by remember { mutableStateOf("Inbox") }
+    var showTagPicker by remember { mutableStateOf(false) }
     
     val titleFocusRequester = remember { FocusRequester() }
     val configuration = LocalConfiguration.current
@@ -294,27 +312,16 @@ fun AddTaskBottomSheet(
                                     onClick = { showDatePicker = true }
                                 )
                                 DetailPill(
-                                    icon = { Icon(Icons.Default.PriorityHigh, null, tint = PrimaryPurple, modifier = Modifier.size(20.dp)) },
-                                    text = "Priority"
-                                )
-                                DetailPill(
                                     icon = { Icon(Icons.Default.Label, null, tint = PrimaryPurple, modifier = Modifier.size(20.dp)) },
-                                    text = "Inbox"
+                                    text = selectedTag,
+                                    onClick = { showTagPicker = true }
                                 )
                             }
 
                             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                                 SuggestionChip(
-                                    icon = { Icon(Icons.Outlined.AutoAwesome, null, tint = PrimaryPurple, modifier = Modifier.size(16.dp)) },
-                                    label = "Break into 3 sub-tasks",
-                                    border = PrimaryPurple.copy(alpha = 0.1f),
-                                    background = PrimaryPurple.copy(alpha = 0.05f),
-                                    textColor = PrimaryPurple,
-                                    onClick = {}
-                                )
-                                SuggestionChip(
                                     icon = { Icon(Icons.Default.Event, null, tint = SecondaryTeal, modifier = Modifier.size(16.dp)) },
-                                    label = "Schedule for tomorrow morning",
+                                    label = "Schedule reminder notification for the task",
                                     border = SecondaryTeal.copy(alpha = 0.1f),
                                     background = SecondaryTeal.copy(alpha = 0.05f),
                                     textColor = SecondaryTeal,
@@ -350,6 +357,162 @@ fun AddTaskBottomSheet(
                 onDismissRequest = { showDatePicker = false },
                 hazeState = hazeState
             )
+        }
+
+        if (showTagPicker) {
+            OkonowPickerDialog(
+                title = "Select Tag",
+                options = listOf("Work", "Personal", "Shopping", "Health", "Inbox"),
+                selectedOption = selectedTag,
+                onOptionSelected = { selectedTag = it },
+                onDismissRequest = { showTagPicker = false },
+                hazeState = hazeState
+            )
+        }
+    }
+}
+
+@Composable
+fun OkonowPickerDialog(
+    title: String,
+    options: List<String>,
+    selectedOption: String?,
+    onOptionSelected: (String) -> Unit,
+    onDismissRequest: () -> Unit,
+    hazeState: HazeState
+) {
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        // Scrim
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .hazeEffect(state = hazeState) {
+                    backgroundColor = Background
+                    blurRadius = 24.dp
+                    tints = listOf(HazeTint(Color.Black.copy(alpha = 0.5f)))
+                }
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = onDismissRequest
+                )
+        )
+
+        // Content
+        Box(
+            modifier = Modifier
+                .padding(horizontal = 24.dp)
+                .fillMaxWidth()
+                .wrapContentHeight()
+                .clip(RoundedCornerShape(32.dp))
+                .background(
+                    Brush.verticalGradient(
+                        listOf(
+                            MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.4f),
+                            MaterialTheme.colorScheme.surfaceContainerLowest.copy(alpha = 0.6f)
+                        )
+                    )
+                )
+                .hazeEffect(state = hazeState) {
+                    backgroundColor = Background
+                    blurRadius = 40.dp
+                    tints = listOf(HazeTint(Background.copy(alpha = 0.2f)))
+                }
+        ) {
+            Column(
+                modifier = Modifier
+                    .padding(24.dp)
+                    .fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = OnSurface,
+                    fontWeight = FontWeight.Bold
+                )
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    options.forEach { option ->
+                        val isSelected = option == selectedOption
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(16.dp))
+                                .then(
+                                    if (isSelected) {
+                                        Modifier.background(
+                                            Brush.linearGradient(
+                                                listOf(PrimaryPurple, TertiaryPink)
+                                            )
+                                        )
+                                    } else {
+                                        Modifier.background(MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.3f))
+                                    }
+                                )
+                                .clickable {
+                                    onOptionSelected(option)
+                                }
+                                .padding(16.dp),
+                            contentAlignment = Alignment.CenterStart
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = option,
+                                    color = if (isSelected) Background else OnSurface,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                    fontSize = 16.sp
+                                )
+                                if (isSelected) {
+                                    Icon(
+                                        Icons.Default.Check,
+                                        contentDescription = null,
+                                        tint = Background,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    TextButton(onClick = onDismissRequest) {
+                        Text("CANCEL", color = OnSurfaceVariant, letterSpacing = 1.sp)
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Button(
+                        onClick = onDismissRequest,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = PrimaryPurple,
+                            contentColor = Background,
+                            disabledContainerColor = SurfaceVariant.copy(alpha = 0.5f),
+                            disabledContentColor = OnSurface.copy(alpha = 0.3f)
+                        ),
+                        shape = RoundedCornerShape(16.dp)
+                    ) {
+                        Text("DONE", fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
         }
     }
 }
