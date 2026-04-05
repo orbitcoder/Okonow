@@ -2,6 +2,17 @@ package com.noitacilppa.okonow.ui.task
 
 import android.net.Uri
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateDp
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.updateTransition
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -10,7 +21,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -28,19 +38,15 @@ import androidx.compose.material.icons.filled.Event
 import androidx.compose.material.icons.filled.Label
 import androidx.compose.material.icons.filled.PriorityHigh
 import androidx.compose.material.icons.outlined.AutoAwesome
-import androidx.compose.material3.DatePicker
-import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -67,9 +73,9 @@ import com.noitacilppa.okonow.ui.theme.SurfaceContainer
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.hazeEffect
-import dev.chrisbanes.haze.HazeStyle
 import dev.chrisbanes.haze.HazeTint
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -83,6 +89,7 @@ fun AddTaskBottomSheet(
     onSave: (String, String, List<String>, String?) -> Unit,
     hazeState: HazeState
 ) {
+    // 1. Logic & State
     var title by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
     var attachmentUri by remember { mutableStateOf<Uri?>(null) }
@@ -93,80 +100,106 @@ fun AddTaskBottomSheet(
     var showDatePicker by remember { mutableStateOf(false) }
     
     val titleFocusRequester = remember { FocusRequester() }
-
     val configuration = LocalConfiguration.current
     val screenHeight = configuration.screenHeightDp.dp
     val sheetHeight = screenHeight * 0.8f
-
     val keyboard = LocalSoftwareKeyboardController.current
 
+    // 2. Animation Lifecycle
+    var isVisible by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) {
-        delay(80)
-        titleFocusRequester.requestFocus()
-        keyboard?.show()
+        isVisible = true
+    }
+
+    val transition = updateTransition(targetState = isVisible, label = "SheetTransition")
+    
+    // Scrim and Blur animations
+    val scrimAlpha by transition.animateFloat(label = "ScrimAlpha") { if (it) 0.45f else 0f }
+    val backgroundBlur by transition.animateDp(label = "BgBlur") { if (it) 20.dp else 0.dp }
+
+    // Helper to dismiss with exit animation
+    val scope = rememberCoroutineScope()
+    val dismissWithAnimation = {
+        isVisible = false
+        scope.launch {
+            delay(300) // Match exit animation duration
+            onDismiss()
+        }
+    }
+
+    BackHandler(enabled = isVisible, onBack = { dismissWithAnimation() })
+
+    LaunchedEffect(isVisible) {
+        if (isVisible) {
+            delay(150) // Wait for slide to settle slightly
+            titleFocusRequester.requestFocus()
+            keyboard?.show()
+        }
     }
 
     // Root container
     Box(
         modifier = Modifier.fillMaxSize()
     ) {
-        // 1. Blur the entire background content from MainShell
+        // 1. Blur and Scrim
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .hazeEffect(state = hazeState) {
                     backgroundColor = Background
-                    blurRadius = 20.dp
-                    tints = listOf(HazeTint(Color.Black.copy(alpha = 0.4f)))
+                    blurRadius = backgroundBlur
+                    tints = listOf(HazeTint(Color.Black.copy(alpha = scrimAlpha * 0.8f)))
                 }
-        )
-
-        // 2. Scrim
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.45f))
+                .background(Color.Black.copy(alpha = scrimAlpha))
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
-                    onClick = onDismiss
+                    onClick = { dismissWithAnimation() }
                 )
         )
 
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .fillMaxHeight()
-                .navigationBarsPadding(),
-            contentAlignment = Alignment.BottomCenter
+        // 2. Sheet Content
+        transition.AnimatedVisibility(
+            visible = { it },
+            modifier = Modifier.align(Alignment.BottomCenter),
+            enter = slideInVertically(
+                initialOffsetY = { it },
+                animationSpec = spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessLow)
+            ) + fadeIn(tween(300)),
+            exit = slideOutVertically(targetOffsetY = { it }, animationSpec = tween(300)) + fadeOut(tween(250))
         ) {
-            // Container for the decorative glows and the sheet surface
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(sheetHeight)
+                    .navigationBarsPadding(),
+                contentAlignment = Alignment.BottomCenter
             ) {
-                // 3. Decorative Background Glows
+                // Background Glows (Stationary relative to sheet)
                 Box(
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .offset(x = 40.dp, y = 96.dp)
-                        .size(256.dp)
-                        .hazeSource(state = hazeState)
-                        .background(PrimaryPurple.copy(alpha = 0.15f), CircleShape)
-                        .blur(80.dp)
-                )
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.BottomStart)
-                        .offset(x = (-40).dp, y = (-200).dp)
-                        .size(256.dp)
-                        .hazeSource(state = hazeState)
-                        .background(SecondaryTeal.copy(alpha = 0.12f), CircleShape)
-                        .blur(80.dp)
-                )
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .offset(x = 40.dp, y = 96.dp)
+                            .size(256.dp)
+                            .hazeSource(state = hazeState)
+                            .background(PrimaryPurple.copy(alpha = 0.15f), CircleShape)
+                            .blur(80.dp)
+                    )
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.BottomStart)
+                            .offset(x = (-40).dp, y = (-200).dp)
+                            .size(256.dp)
+                            .hazeSource(state = hazeState)
+                            .background(SecondaryTeal.copy(alpha = 0.12f), CircleShape)
+                            .blur(80.dp)
+                    )
+                }
 
-                // 4. The glass sheet surface
+                // Glass sheet surface
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -200,7 +233,7 @@ fun AddTaskBottomSheet(
                         ) {
                             TaskHeader(
                                 title = "New Task",
-                                onDismiss = onDismiss
+                                onDismiss = { dismissWithAnimation() }
                             )
 
                             TaskTitleInput(
@@ -220,7 +253,6 @@ fun AddTaskBottomSheet(
                                 onAddSubtask = { subtasks.add("") },
                                 onToggleMode = { 
                                     if (!isSubtaskMode) {
-                                        // Switching from Description to Subtasks
                                         val plainText = description.trim()
                                         if (plainText.isNotEmpty()) {
                                             if (subtasks.isNotEmpty() && subtasks[0].isBlank()) {
@@ -231,14 +263,12 @@ fun AddTaskBottomSheet(
                                             description = ""
                                         }
                                     } else {
-                                        // Switching from Subtasks to Description
                                         val combined = subtasks.filter { it.isNotBlank() }.joinToString("\n")
                                         if (combined.isNotEmpty()) {
                                             description = combined
                                             subtasks.clear()
                                         }
                                     }
-
                                     isSubtaskMode = !isSubtaskMode 
                                     if (isSubtaskMode && subtasks.isEmpty()) {
                                         subtasks.add("")
@@ -246,7 +276,6 @@ fun AddTaskBottomSheet(
                                 }
                             )
 
-                            // Detail Pills
                             FlowRow(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -274,7 +303,6 @@ fun AddTaskBottomSheet(
                                 )
                             }
 
-                            // AI Suggestions
                             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                                 SuggestionChip(
                                     icon = { Icon(Icons.Outlined.AutoAwesome, null, tint = PrimaryPurple, modifier = Modifier.size(16.dp)) },
@@ -297,9 +325,9 @@ fun AddTaskBottomSheet(
                             TaskActionButtons(
                                 onSave = {
                                     onSave(title, description, subtasks.toList(), attachmentUri?.toString())
-                                    onDismiss()
+                                    dismissWithAnimation()
                                 },
-                                onDelete = onDismiss
+                                onDelete = { dismissWithAnimation() }
                             )
                         }
                     }
@@ -324,6 +352,4 @@ fun AddTaskBottomSheet(
             )
         }
     }
-
-    BackHandler(onBack = onDismiss)
 }
