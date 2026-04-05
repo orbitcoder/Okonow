@@ -2,7 +2,7 @@ package com.noitacilppa.okonow.ui.task
 
 import android.net.Uri
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.*
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDp
 import androidx.compose.animation.core.animateFloat
@@ -16,22 +16,7 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -41,14 +26,9 @@ import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Event
 import androidx.compose.material.icons.filled.Label
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.outlined.AutoAwesome
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -78,6 +58,7 @@ import com.noitacilppa.okonow.ui.task.components.TaskHeader
 import com.noitacilppa.okonow.ui.components.OkonowCalendar
 import com.noitacilppa.okonow.ui.task.components.TaskTitleInput
 import com.noitacilppa.okonow.ui.theme.Background
+import com.noitacilppa.okonow.ui.theme.OkonowTheme
 import com.noitacilppa.okonow.ui.theme.OnSurface
 import com.noitacilppa.okonow.ui.theme.OnSurfaceVariant
 import com.noitacilppa.okonow.ui.theme.PrimaryPurple
@@ -92,6 +73,8 @@ import dev.chrisbanes.haze.HazeTint
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
+import java.time.LocalTime
+import java.time.format.DateTimeFormatter
 import java.util.Date
 import java.util.Locale
 
@@ -116,6 +99,9 @@ fun AddTaskBottomSheet(
 
     var selectedTag by remember { mutableStateOf("Inbox") }
     var showTagPicker by remember { mutableStateOf(false) }
+
+    var selectedTime by remember { mutableStateOf<LocalTime?>(null) }
+    var showTimePicker by remember { mutableStateOf(false) }
     
     val titleFocusRequester = remember { FocusRequester() }
     val configuration = LocalConfiguration.current
@@ -319,13 +305,22 @@ fun AddTaskBottomSheet(
                             }
 
                             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                val reminderText = if (selectedTime != null) {
+                                    val timeFormatter = DateTimeFormatter.ofPattern("hh:mm a", Locale.getDefault())
+                                    val dateFormatter = SimpleDateFormat("MMM dd", Locale.getDefault())
+                                    val dateString = selectedDateMillis?.let { dateFormatter.format(Date(it)) } ?: "Today"
+                                    "You will be notified at ${selectedTime!!.format(timeFormatter)} on $dateString"
+                                } else {
+                                    "Schedule reminder notification for the task"
+                                }
+
                                 SuggestionChip(
-                                    icon = { Icon(Icons.Default.Event, null, tint = SecondaryTeal, modifier = Modifier.size(16.dp)) },
-                                    label = "Schedule reminder notification for the task",
+                                    icon = { Icon(Icons.Default.Notifications, null, tint = SecondaryTeal, modifier = Modifier.size(16.dp)) },
+                                    label = reminderText,
                                     border = SecondaryTeal.copy(alpha = 0.1f),
                                     background = SecondaryTeal.copy(alpha = 0.05f),
                                     textColor = SecondaryTeal,
-                                    onClick = {}
+                                    onClick = { showTimePicker = true }
                                 )
                             }
 
@@ -368,6 +363,134 @@ fun AddTaskBottomSheet(
                 onDismissRequest = { showTagPicker = false },
                 hazeState = hazeState
             )
+        }
+
+        if (showTimePicker) {
+            OkonowTimePicker(
+                onTimeSelected = { selectedTime = it },
+                onDismissRequest = { showTimePicker = false },
+                hazeState = hazeState
+            )
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun OkonowTimePicker(
+    onTimeSelected: (LocalTime) -> Unit,
+    onDismissRequest: () -> Unit,
+    hazeState: HazeState
+) {
+    val currentTime = LocalTime.now()
+    val timePickerState = rememberTimePickerState(
+        initialHour = currentTime.hour,
+        initialMinute = currentTime.minute,
+        is24Hour = false
+    )
+
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        // Scrim
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .hazeEffect(state = hazeState) {
+                    backgroundColor = Background
+                    blurRadius = 24.dp
+                    tints = listOf(HazeTint(Color.Black.copy(alpha = 0.5f)))
+                }
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = onDismissRequest
+                )
+        )
+
+        // Content
+        Box(
+            modifier = Modifier
+                .padding(horizontal = 24.dp)
+                .fillMaxWidth()
+                .wrapContentHeight()
+                .clip(RoundedCornerShape(32.dp))
+                .background(
+                    Brush.verticalGradient(
+                        listOf(
+                            MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.4f),
+                            MaterialTheme.colorScheme.surfaceContainerLowest.copy(alpha = 0.6f)
+                        )
+                    )
+                )
+                .hazeEffect(state = hazeState) {
+                    backgroundColor = Background
+                    blurRadius = 40.dp
+                    tints = listOf(HazeTint(Background.copy(alpha = 0.2f)))
+                }
+        ) {
+            Column(
+                modifier = Modifier
+                    .padding(24.dp)
+                    .fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = "Select Time",
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = OnSurface,
+                    fontWeight = FontWeight.Bold
+                )
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                TimePicker(
+                    state = timePickerState,
+                    colors = TimePickerDefaults.colors(
+                        clockDialColor = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.3f),
+                        clockDialSelectedContentColor = Background,
+                        clockDialUnselectedContentColor = OnSurface,
+                        selectorColor = PrimaryPurple,
+                        containerColor = Color.Transparent,
+                        periodSelectorBorderColor = PrimaryPurple,
+                        periodSelectorSelectedContainerColor = PrimaryPurple.copy(alpha = 0.2f),
+                        periodSelectorSelectedContentColor = PrimaryPurple,
+                        periodSelectorUnselectedContainerColor = Color.Transparent,
+                        periodSelectorUnselectedContentColor = OnSurfaceVariant,
+                        timeSelectorSelectedContainerColor = PrimaryPurple.copy(alpha = 0.2f),
+                        timeSelectorSelectedContentColor = PrimaryPurple,
+                        timeSelectorUnselectedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = 0.3f),
+                        timeSelectorUnselectedContentColor = OnSurface
+                    )
+                )
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    TextButton(onClick = onDismissRequest) {
+                        Text("CANCEL", color = OnSurfaceVariant, letterSpacing = 1.sp)
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Button(
+                        onClick = {
+                            onTimeSelected(LocalTime.of(timePickerState.hour, timePickerState.minute))
+                            onDismissRequest()
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = PrimaryPurple,
+                            contentColor = Background
+                        ),
+                        shape = RoundedCornerShape(16.dp)
+                    ) {
+                        Text("DONE", fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
         }
     }
 }

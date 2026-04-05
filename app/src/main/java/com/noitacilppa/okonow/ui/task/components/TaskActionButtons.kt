@@ -49,7 +49,7 @@ fun TaskActionButtons(
                     listOf(Color.Transparent, Background.copy(alpha = 0.95f))
                 )
             )
-            .padding(horizontal = 32.dp, vertical = 16.dp)
+            .padding(horizontal = 0.dp, vertical = 16.dp)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -60,7 +60,7 @@ fun TaskActionButtons(
                 modifier = Modifier
                     .weight(1f)
                     .height(64.dp)
-                    .clip(RoundedCornerShape(16.dp))
+                    .clip(RoundedCornerShape(32.dp))
                     .background(Brush.linearGradient(listOf(PrimaryPurple, PrimaryDim)))
                     .clickable { onSave() },
                 contentAlignment = Alignment.Center
@@ -86,7 +86,7 @@ fun TaskActionButtons(
             Box(
                 modifier = Modifier
                     .size(64.dp)
-                    .clip(RoundedCornerShape(16.dp))
+                    .clip(RoundedCornerShape(32.dp))
                     .background(SurfaceContainerHighest)
                     .border(1.dp, OutlineVariant.copy(alpha = 0.12f), RoundedCornerShape(16.dp))
                     .clickable { onDelete() },
