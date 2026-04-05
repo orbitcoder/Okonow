@@ -41,9 +41,11 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.noitacilppa.okonow.ui.task.SubtaskState
 import com.noitacilppa.okonow.ui.theme.OnSurface
 import com.noitacilppa.okonow.ui.theme.OnSurfaceVariant
 import com.noitacilppa.okonow.ui.theme.OutlineVariant
@@ -206,7 +208,9 @@ fun TaskDescriptionInput(
     attachmentUri: Uri? = null,
     isSubtaskMode: Boolean = false,
     subtasks: List<String> = emptyList(),
+    subtaskStates: List<SubtaskState> = emptyList(),
     onSubtaskChange: (Int, String) -> Unit = { _, _ -> },
+    onSubtaskToggle: (Int) -> Unit = {},
     onAddSubtask: () -> Unit = {},
     onToggleMode: () -> Unit = {},
     modifier: Modifier = Modifier
@@ -344,15 +348,15 @@ fun TaskDescriptionInput(
                     .heightIn(min = 90.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                subtasks.forEachIndexed { index, subtask ->
+                subtaskStates.forEachIndexed { index, state ->
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Checkbox(
-                            checked = false,
-                            onCheckedChange = null,
+                            checked = state.isDone,
+                            onCheckedChange = { onSubtaskToggle(index) },
                             colors = CheckboxDefaults.colors(
                                 uncheckedColor = OnSurfaceVariant.copy(alpha = 0.5f),
                                 checkmarkColor = PrimaryPurple
@@ -360,18 +364,19 @@ fun TaskDescriptionInput(
                             modifier = Modifier.size(24.dp)
                         )
                         BasicTextField(
-                            value = subtask,
+                            value = state.description,
                             onValueChange = { onSubtaskChange(index, it) },
                             modifier = Modifier.weight(1f),
                             textStyle = TextStyle(
-                                color = OnSurface.copy(alpha = 0.85f),
+                                color = OnSurface.copy(alpha = if (state.isDone) 0.4f else 0.85f),
                                 fontSize = 16.sp,
-                                lineHeight = 24.sp
+                                lineHeight = 24.sp,
+                                textDecoration = if (state.isDone) TextDecoration.LineThrough else TextDecoration.None
                             ),
                             cursorBrush = SolidColor(PrimaryPurple),
                             decorationBox = { inner ->
                                 Box {
-                                    if (subtask.isEmpty()) {
+                                    if (state.description.isEmpty()) {
                                         Text(
                                             "Subtask description",
                                             fontSize = 16.sp,

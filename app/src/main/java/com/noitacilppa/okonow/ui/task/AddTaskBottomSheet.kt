@@ -1,7 +1,16 @@
 package com.noitacilppa.okonow.ui.task
 
+import android.Manifest
+import android.app.AlarmManager
+import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
+import android.provider.Settings
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateDp
@@ -9,10 +18,6 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.updateTransition
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -29,14 +34,7 @@ import androidx.compose.material.icons.filled.Label
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
@@ -45,10 +43,12 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import com.noitacilppa.okonow.ui.task.components.BottomSheetHandle
 import com.noitacilppa.okonow.ui.task.components.DetailPill
 import com.noitacilppa.okonow.ui.task.components.SuggestionChip
@@ -58,7 +58,6 @@ import com.noitacilppa.okonow.ui.task.components.TaskHeader
 import com.noitacilppa.okonow.ui.components.OkonowCalendar
 import com.noitacilppa.okonow.ui.task.components.TaskTitleInput
 import com.noitacilppa.okonow.ui.theme.Background
-import com.noitacilppa.okonow.ui.theme.OkonowTheme
 import com.noitacilppa.okonow.ui.theme.OnSurface
 import com.noitacilppa.okonow.ui.theme.OnSurfaceVariant
 import com.noitacilppa.okonow.ui.theme.PrimaryPurple
@@ -75,16 +74,22 @@ import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
+import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
 private val SheetTopRadius = 24.dp
 
+data class SubtaskState(
+    val description: String,
+    val isDone: Boolean = false
+)
+
 @OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun AddTaskBottomSheet(
     onDismiss: () -> Unit,
-    onSave: (String, String, List<String>, String?) -> Unit,
+    onSave: (String, String, List<SubtaskState>, String?, String, Date?, Date?) -> Unit,
     hazeState: HazeState
 ) {
     // 1. Logic & State
@@ -92,7 +97,7 @@ fun AddTaskBottomSheet(
     var description by remember { mutableStateOf("") }
     var attachmentUri by remember { mutableStateOf<Uri?>(null) }
     var isSubtaskMode by remember { mutableStateOf(false) }
-    val subtasks = remember { mutableStateListOf<String>() }
+    val subtasks = remember { mutableStateListOf<SubtaskState>() }
     
     var selectedDateMillis by remember { mutableStateOf<Long?>(System.currentTimeMillis()) }
     var showDatePicker by remember { mutableStateOf(false) }
@@ -108,6 +113,18 @@ fun AddTaskBottomSheet(
     val screenHeight = configuration.screenHeightDp.dp
     val sheetHeight = screenHeight * 0.8f
     val keyboard = LocalSoftwareKeyboardController.current
+    val context = LocalContext.current
+
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            // Permission granted, check for exact alarm permission
+            checkAndRequestExactAlarmPermission(context) {
+                showTimePicker = true
+            }
+        }
+    }
 
     // 2. Animation Lifecycle
     var isVisible by remember { mutableStateOf(false) }
@@ -252,22 +269,28 @@ fun AddTaskBottomSheet(
                                 onAttachmentChange = { attachmentUri = it },
                                 attachmentUri = attachmentUri,
                                 isSubtaskMode = isSubtaskMode,
-                                subtasks = subtasks,
-                                onSubtaskChange = { index, newValue -> subtasks[index] = newValue },
-                                onAddSubtask = { subtasks.add("") },
+                                subtasks = subtasks.map { it.description },
+                                subtaskStates = subtasks,
+                                onSubtaskChange = { index, newValue -> 
+                                    subtasks[index] = subtasks[index].copy(description = newValue) 
+                                },
+                                onSubtaskToggle = { index ->
+                                    subtasks[index] = subtasks[index].copy(isDone = !subtasks[index].isDone)
+                                },
+                                onAddSubtask = { subtasks.add(SubtaskState("")) },
                                 onToggleMode = { 
                                     if (!isSubtaskMode) {
                                         val plainText = description.trim()
                                         if (plainText.isNotEmpty()) {
-                                            if (subtasks.isNotEmpty() && subtasks[0].isBlank()) {
-                                                subtasks[0] = plainText
+                                            if (subtasks.isNotEmpty() && subtasks[0].description.isBlank()) {
+                                                subtasks[0] = subtasks[0].copy(description = plainText)
                                             } else {
-                                                subtasks.add(0, plainText)
+                                                subtasks.add(0, SubtaskState(plainText))
                                             }
                                             description = ""
                                         }
                                     } else {
-                                        val combined = subtasks.filter { it.isNotBlank() }.joinToString("\n")
+                                        val combined = subtasks.filter { it.description.isNotBlank() }.joinToString("\n") { it.description }
                                         if (combined.isNotEmpty()) {
                                             description = combined
                                             subtasks.clear()
@@ -275,7 +298,7 @@ fun AddTaskBottomSheet(
                                     }
                                     isSubtaskMode = !isSubtaskMode 
                                     if (isSubtaskMode && subtasks.isEmpty()) {
-                                        subtasks.add("")
+                                        subtasks.add(SubtaskState(""))
                                     }
                                 }
                             )
@@ -320,13 +343,41 @@ fun AddTaskBottomSheet(
                                     border = SecondaryTeal.copy(alpha = 0.1f),
                                     background = SecondaryTeal.copy(alpha = 0.05f),
                                     textColor = SecondaryTeal,
-                                    onClick = { showTimePicker = true }
+                                    onClick = {
+                                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                            if (ContextCompat.checkSelfPermission(
+                                                    context,
+                                                    Manifest.permission.POST_NOTIFICATIONS
+                                                ) != PackageManager.PERMISSION_GRANTED
+                                            ) {
+                                                notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                                            } else {
+                                                checkAndRequestExactAlarmPermission(context) {
+                                                    showTimePicker = true
+                                                }
+                                            }
+                                        } else {
+                                            checkAndRequestExactAlarmPermission(context) {
+                                                showTimePicker = true
+                                            }
+                                        }
+                                    }
                                 )
                             }
 
                             TaskActionButtons(
                                 onSave = {
-                                    onSave(title, description, subtasks.toList(), attachmentUri?.toString())
+                                    val finalEndTime = selectedDateMillis?.let { Date(it) }
+                                    val finalReminderTime = if (selectedTime != null && selectedDateMillis != null) {
+                                        val cal = Calendar.getInstance()
+                                        cal.timeInMillis = selectedDateMillis!!
+                                        cal.set(Calendar.HOUR_OF_DAY, selectedTime!!.hour)
+                                        cal.set(Calendar.MINUTE, selectedTime!!.minute)
+                                        cal.set(Calendar.SECOND, 0)
+                                        cal.time
+                                    } else null
+
+                                    onSave(title, description, subtasks.toList(), attachmentUri?.toString(), selectedTag, finalEndTime, finalReminderTime)
                                     dismissWithAnimation()
                                 },
                                 onDelete = { dismissWithAnimation() }
@@ -372,6 +423,22 @@ fun AddTaskBottomSheet(
                 hazeState = hazeState
             )
         }
+    }
+}
+
+private fun checkAndRequestExactAlarmPermission(context: Context, onGranted: () -> Unit) {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
+        if (!alarmManager.canScheduleExactAlarms()) {
+            val intent = Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM).apply {
+                data = Uri.fromParts("package", context.packageName, null)
+            }
+            context.startActivity(intent)
+        } else {
+            onGranted()
+        }
+    } else {
+        onGranted()
     }
 }
 

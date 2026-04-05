@@ -3,22 +3,29 @@ package com.noitacilppa.okonow.ui
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.noitacilppa.okonow.data.Subtask
+import com.noitacilppa.okonow.data.Tag
 import com.noitacilppa.okonow.data.Task
 import com.noitacilppa.okonow.data.TaskDetailed
 import com.noitacilppa.okonow.data.TodoItem
 import com.noitacilppa.okonow.data.TodoRepository
+import com.noitacilppa.okonow.reminder.ReminderManager
+import com.noitacilppa.okonow.ui.task.SubtaskState
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import java.util.Date
 
 data class TodoUiState(
     val itemList: List<TodoItem> = listOf(),
     val tasks: List<TaskDetailed> = listOf()
 )
 
-class TodoViewModel(private val todoRepository: TodoRepository) : ViewModel() {
+class TodoViewModel(
+    private val todoRepository: TodoRepository,
+    private val reminderManager: ReminderManager
+) : ViewModel() {
 
     // For now, we use a hardcoded userId 1. In a real app, this would come from a Session/User manager.
     private val currentUserId = 1L
@@ -34,24 +41,40 @@ class TodoViewModel(private val todoRepository: TodoRepository) : ViewModel() {
     fun addTask(
         title: String,
         description: String,
-        subtasks: List<String> = emptyList(),
-        attachmentUri: String? = null
+        subtasks: List<SubtaskState> = emptyList(),
+        attachmentUri: String? = null,
+        tag: String? = null,
+        endTime: Date? = null,
+        reminderTime: Date? = null
     ) {
         if (title.isBlank()) return
         viewModelScope.launch {
-            val taskId = todoRepository.insertTask(
-                Task(
-                    userId = currentUserId,
-                    title = title,
-                    details = description,
-                    attachmentUri = attachmentUri
-                )
+            val task = Task(
+                userId = currentUserId,
+                title = title,
+                details = description,
+                attachmentUri = attachmentUri,
+                startTime = endTime,
+                endTime = endTime,
+                reminderTime = reminderTime
             )
+            val taskId = todoRepository.insertTask(task)
+            
+            val taskWithId = task.copy(id = taskId)
+            if (reminderTime != null) {
+                reminderManager.scheduleReminder(taskWithId)
+            }
+
+            if (tag != null) {
+                todoRepository.updateTaskTags(taskId, listOf(Tag(name = tag)))
+            }
+
             if (subtasks.isNotEmpty()) {
-                val subtaskEntities = subtasks.filter { it.isNotBlank() }.mapIndexed { index, subtaskDesc ->
+                val subtaskEntities = subtasks.filter { it.description.isNotBlank() }.mapIndexed { index, subtaskState ->
                     Subtask(
                         taskId = taskId,
-                        description = subtaskDesc,
+                        description = subtaskState.description,
+                        isCompleted = subtaskState.isDone,
                         position = index
                     )
                 }

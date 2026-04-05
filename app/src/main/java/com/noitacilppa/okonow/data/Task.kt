@@ -33,7 +33,7 @@ data class Task(
     val priority: Priority = Priority.MEDIUM,
     val startTime: Date? = null,
     val endTime: Date? = null,
-    val remind10MinBefore: Boolean = false,
+    val reminderTime: Date? = null, // Time for local notification
     val isCompleted: Boolean = false,
     val completedAt: Date? = null,
     val createdAt: Date = Date(),

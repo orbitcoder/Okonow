@@ -17,6 +17,9 @@ interface TodoRepository {
     // Subtask operations
     suspend fun insertSubtasks(subtasks: List<Subtask>)
 
+    // Tag operations
+    suspend fun updateTaskTags(taskId: Long, tags: List<Tag>)
+
     // User operations
     suspend fun insertUser(user: User): Long
     fun getUserStream(userId: Long): Flow<User?>
@@ -41,6 +44,8 @@ class OfflineTodoRepository(private val database: TodoDatabase) : TodoRepository
     override suspend fun deleteTask(task: Task) = todoDao.deleteTask(task)
 
     override suspend fun insertSubtasks(subtasks: List<Subtask>) = todoDao.insertSubtasks(subtasks)
+
+    override suspend fun updateTaskTags(taskId: Long, tags: List<Tag>) = todoDao.updateTaskTags(taskId, tags)
 
     override suspend fun insertUser(user: User): Long = todoDao.insertUser(user)
     override fun getUserStream(userId: Long): Flow<User?> = todoDao.getUserById(userId)

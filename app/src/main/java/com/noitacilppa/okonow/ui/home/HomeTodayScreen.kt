@@ -1,9 +1,10 @@
 package com.noitacilppa.okonow.ui.home
 
 import android.widget.Toast
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -11,6 +12,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -26,7 +28,12 @@ import coil.compose.AsyncImage
 import com.noitacilppa.okonow.data.UserPreferences
 import com.noitacilppa.okonow.ui.TodoViewModel
 import com.noitacilppa.okonow.ui.home.components.*
+import com.noitacilppa.okonow.ui.tasklist.TaskListTab
+import com.noitacilppa.okonow.ui.tasklist.components.GlossyTaskCard
+import com.noitacilppa.okonow.ui.tasklist.groupTasksByDate
 import com.noitacilppa.okonow.ui.theme.*
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.util.Calendar
 
 /** Stitch Home / Today — header avatar. */
@@ -38,17 +45,32 @@ private const val HomeHeaderAvatarUrl =
 fun HomeTodayScreen(
     modifier: Modifier = Modifier,
     onSettings: () -> Unit = {},
-    onSeeAllTasks: () -> Unit = {},
+    onSeeAllTasks: (TaskListTab) -> Unit = {},
     onAddTask: () -> Unit = {},
     viewModel: TodoViewModel
 ) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     val userPreferences = remember { UserPreferences(context) }
     val userName by userPreferences.userName.collectAsState(initial = "Alex")
     
     val uiState by viewModel.uiState.collectAsState()
-    val tasks = uiState.tasks
-    val hasTasks = tasks.isNotEmpty()
+    val allTasks = uiState.tasks
+    
+    // Maintain a list of tasks that were recently completed to keep them visible for a bit
+    val recentlyCompletedIds = remember { mutableStateListOf<Long>() }
+    // Maintain a list of tasks that are currently animating out
+    val exitingIds = remember { mutableStateListOf<Long>() }
+    
+    val focusedTasks = remember(allTasks, recentlyCompletedIds.toList(), exitingIds.toList()) {
+        allTasks.filter { 
+            !it.task.isCompleted || 
+            recentlyCompletedIds.contains(it.task.id) || 
+            exitingIds.contains(it.task.id) 
+        }
+    }
+    
+    val hasTasks = allTasks.isNotEmpty()
 
     val greeting = remember {
         val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
@@ -59,9 +81,9 @@ fun HomeTodayScreen(
         }
     }
 
-    val tasksCompletedToday = tasks.count { it.task.isCompleted }
-    val totalTasksToday = tasks.size
-    val progress = if (tasks.isEmpty()) 1.0f else tasksCompletedToday.toFloat() / totalTasksToday
+    val tasksCompletedToday = allTasks.count { it.task.isCompleted }
+    val totalTasksToday = allTasks.size
+    val progress = if (allTasks.isEmpty()) 1.0f else tasksCompletedToday.toFloat() / totalTasksToday
 
     Box(modifier = modifier.fillMaxSize()) {
         Column(
@@ -128,16 +150,15 @@ fun HomeTodayScreen(
                 )
 
                 Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    if (hasTasks) {
+                    if (focusedTasks.isNotEmpty()) {
                         Row(
                             modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 8.dp),
+                                .fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.Bottom
                         ) {
                             Text(
-                                "Today's Focus",
+                                "Focused Tasks",
                                 style = MaterialTheme.typography.headlineSmall,
                                 fontWeight = FontWeight.Black,
                                 color = OnSurface
@@ -149,34 +170,127 @@ fun HomeTodayScreen(
                                 fontWeight = FontWeight.Bold,
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(8.dp))
-                                    .clickable { onSeeAllTasks() }
+                                    .clickable { onSeeAllTasks(TaskListTab.UPCOMING) }
                                     .padding(horizontal = 8.dp, vertical = 4.dp)
                             )
                         }
 
-                        tasks.take(3).forEach { taskItem ->
-                            val task = taskItem.task
-                            GlossyTaskCard(
-                                title = task.title,
-                                subtitle = task.details,
-                                priorityLabel = task.priority.name,
-                                priorityBackground = PrimaryPurple.copy(alpha = 0.1f),
-                                priorityText = PrimaryPurple,
-                                priorityBorder = PrimaryPurple.copy(alpha = 0.2f),
-                                subtasksDone = 0,
-                                subtasksTotal = 0,
-                                category = "Focus",
-                                categoryColor = SecondaryTeal,
-                                checkboxAccent = PrimaryPurple,
-                                shape = RoundedCornerShape(24.dp),
-                                initialChecked = task.isCompleted,
-                                onCheckedChange = { viewModel.toggleTaskDone(task) }
-                            )
+                        val groupedTasks = groupTasksByDate(focusedTasks)
+                        var count = 0
+
+                        groupedTasks.forEach { (groupName, groupList) ->
+                            if (count < 6) {
+                                Text(
+                                    groupName,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = OnSurface,
+                                    modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
+                                )
+
+                                val remainingSlots = 6 - count
+                                val itemsToShow = groupList.take(remainingSlots)
+
+                                itemsToShow.forEach { taskItem ->
+                                    val task = taskItem.task
+                                    val isVisible = !exitingIds.contains(task.id)
+                                    
+                                    LaunchedEffect(isVisible) {
+                                        if (!isVisible) {
+                                            delay(500) // Match animation duration
+                                            exitingIds.remove(task.id)
+                                        }
+                                    }
+
+                                    AnimatedVisibility(
+                                        visible = isVisible,
+                                        enter = fadeIn(),
+                                        exit = slideOutHorizontally(
+                                            targetOffsetX = { -it },
+                                            animationSpec = spring(stiffness = Spring.StiffnessLow)
+                                        ) + fadeOut(),
+                                        label = "TaskVisibility"
+                                    ) {
+                                        GlossyTaskCard(
+                                            title = task.title,
+                                            subtitle = task.details,
+                                            priority = task.priority,
+                                            subtasksDone = taskItem.subtasks.count { it.isCompleted },
+                                            subtasksTotal = taskItem.subtasks.size,
+                                            category = taskItem.tags.firstOrNull()?.name ?: "Focus",
+                                            categoryColor = SecondaryTeal,
+                                            checkboxAccent = PrimaryPurple,
+                                            shape = RoundedCornerShape(24.dp),
+                                            reminderTime = task.reminderTime,
+                                            taskDate = task.endTime,
+                                            initialChecked = task.isCompleted,
+                                            onCheckedChange = { isChecked ->
+                                                viewModel.toggleTaskDone(task)
+                                                if (isChecked) {
+                                                    recentlyCompletedIds.add(task.id)
+                                                    scope.launch {
+                                                        delay(3000) // 3-second buffer for undoing
+                                                        if (recentlyCompletedIds.contains(task.id)) {
+                                                            exitingIds.add(task.id)
+                                                            recentlyCompletedIds.remove(task.id)
+                                                        }
+                                                    }
+                                                } else {
+                                                    recentlyCompletedIds.remove(task.id)
+                                                    exitingIds.remove(task.id)
+                                                }
+                                            }
+                                        )
+                                    }
+                                }
+                                count += itemsToShow.size
+                            }
                         }
-                    } else {
+                    } else if (!hasTasks) {
                         EmptyTasksState(onAddTask = onAddTask, onToggleDemo = {
                             Toast.makeText(context, "Demo toggle coming soon", Toast.LENGTH_SHORT).show()
                         })
+                    } else {
+                        // All tasks completed but has tasks
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 32.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            Text(
+                                "All focused tasks completed! 🎉",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = OnSurfaceVariant
+                            )
+                            
+                            Button(
+                                onClick = { onSeeAllTasks(TaskListTab.COMPLETED) },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = PrimaryPurple.copy(alpha = 0.1f),
+                                    contentColor = PrimaryPurple
+                                ),
+                                shape = RoundedCornerShape(12.dp),
+                                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 12.dp)
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    Text(
+                                        "View Completed Tasks",
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 14.sp
+                                    )
+                                    Icon(
+                                        Icons.Default.ChevronRight,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
 
@@ -189,7 +303,7 @@ fun HomeTodayScreen(
                 onClick = onAddTask,
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
-                    .padding(end = 24.dp, bottom = 96.dp),
+                    .padding(end = 24.dp, bottom = 25.dp),
                 containerColor = PrimaryPurple,
                 contentColor = Color(0xFF330066),
                 elevation = FloatingActionButtonDefaults.elevation(
