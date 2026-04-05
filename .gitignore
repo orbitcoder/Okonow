@@ -1,11 +1,55 @@
-*.iml
-.gradle
-/local.properties
-.idea/
-.temp/
-.DS_Store
-/build
-/captures
-.externalNativeBuild
-.cxx
+# Gradle files
+.gradle/
+build/
+/*/build/
+
+# Local configuration file (sdk path, etc)
 local.properties
+
+# Log/cache files
+*.log
+.caches/
+
+# Android Studio/IntelliJ files
+.idea/
+*.iml
+*.iws
+*.ipr
+out/
+
+# Android Studio temporary files
+.temp/
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Output files
+*.apk
+*.ap_
+*.dex
+*.class
+
+# Captures and builds
+captures/
+.externalNativeBuild/
+.cxx/
+
+# Keystore files
+*.jks
+*.keystore
+*.p12
+
+# Google Services
+google-services.json
+
+# Crashlytics
+com_crashlytics_export_strings.xml
+crashlytics.properties
+crashlytics-build.properties
+fabric.properties
