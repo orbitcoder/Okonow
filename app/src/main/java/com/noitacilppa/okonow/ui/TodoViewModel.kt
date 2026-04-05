@@ -2,6 +2,7 @@ package com.noitacilppa.okonow.ui
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.noitacilppa.okonow.data.Subtask
 import com.noitacilppa.okonow.data.Task
 import com.noitacilppa.okonow.data.TaskDetailed
 import com.noitacilppa.okonow.data.TodoItem
@@ -30,16 +31,26 @@ class TodoViewModel(private val todoRepository: TodoRepository) : ViewModel() {
                 initialValue = TodoUiState()
             )
 
-    fun addTask(title: String, description: String) {
+    fun addTask(title: String, description: String, subtasks: List<String> = emptyList()) {
         if (title.isBlank()) return
         viewModelScope.launch {
-            todoRepository.insertTask(
+            val taskId = todoRepository.insertTask(
                 Task(
                     userId = currentUserId,
                     title = title,
                     details = description
                 )
             )
+            if (subtasks.isNotEmpty()) {
+                val subtaskEntities = subtasks.filter { it.isNotBlank() }.mapIndexed { index, subtaskDesc ->
+                    Subtask(
+                        taskId = taskId,
+                        description = subtaskDesc,
+                        position = index
+                    )
+                }
+                todoRepository.insertSubtasks(subtaskEntities)
+            }
         }
     }
 

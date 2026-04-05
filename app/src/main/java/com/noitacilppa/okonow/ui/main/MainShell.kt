@@ -47,6 +47,8 @@ import com.noitacilppa.okonow.ui.theme.OnSurfaceVariant
 import com.noitacilppa.okonow.ui.theme.PrimaryPurple
 import com.noitacilppa.okonow.ui.focus.FocusScreen
 import com.noitacilppa.okonow.ui.history.HistoryScreen
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.hazeSource
 
 private enum class MainTab(
     val saveKey: String,
@@ -66,6 +68,7 @@ fun MainShell(
 ) {
     var selectedTab by rememberSaveable { mutableStateOf(MainTab.TASKS.saveKey) }
     var showAddTask by remember { mutableStateOf(false) }
+    val hazeState = remember { HazeState() }
     val context = LocalContext.current
 
     Scaffold(
@@ -121,8 +124,20 @@ fun MainShell(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .background(Background)
         ) {
+            // Content to be captured for blur
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .hazeSource(state = hazeState)
+            ) {
+                // Background inside the source
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Background)
+                )
+
                 when (selectedTab) {
                     MainTab.TASKS.saveKey -> HomeTodayScreen(
                         modifier = Modifier.fillMaxSize(),
@@ -137,34 +152,20 @@ fun MainShell(
                         todoViewModel = viewModel
                     )
                 }
+            }
 
             if (showAddTask) {
-                Box(
-                    modifier = Modifier
-                        .matchParentSize()
-                        .then(
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                                Modifier.blur(20.dp)
-                            } else {
-                                Modifier
-                            }
-                        )
-                        .background(
-                            Background.copy(
-                                alpha = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) 0.38f else 0.58f
-                            )
-                        )
-                )
                 AddTaskBottomSheet(
                     onDismiss = { showAddTask = false },
-                    onSave = { title, description ->
-                        viewModel.addTask(title, description)
+                    onSave = { title, description, subtasks ->
+                        viewModel.addTask(title, description, subtasks)
                         Toast.makeText(
                             context,
                             if (title.isBlank()) "Task saved" else "Saved: $title",
                             Toast.LENGTH_SHORT
                         ).show()
-                    }
+                    },
+                    hazeState = hazeState
                 )
             }
         }
