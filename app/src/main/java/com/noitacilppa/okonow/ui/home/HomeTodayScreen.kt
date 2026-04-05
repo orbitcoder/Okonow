@@ -301,7 +301,7 @@ fun HomeTodayScreen(
             onClick = onAddTask,
             modifier = Modifier
                 .align(Alignment.BottomEnd)
-                .padding(24.dp),
+                .padding(end = 24.dp, bottom = 0.dp),
             containerColor = PrimaryPurple,
             contentColor = Color.White,
             shape = CircleShape,

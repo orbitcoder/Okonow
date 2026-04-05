@@ -1,5 +1,6 @@
 package com.noitacilppa.okonow.ui.navigation
 
+import MainShell
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -10,7 +11,6 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.noitacilppa.okonow.data.UserPreferences
-import com.noitacilppa.okonow.ui.main.MainShell
 import com.noitacilppa.okonow.ui.onboarding.OnboardingScreen
 
 sealed class Screen(val route: String) {

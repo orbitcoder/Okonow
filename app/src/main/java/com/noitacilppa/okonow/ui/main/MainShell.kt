@@ -1,10 +1,5 @@
-package com.noitacilppa.okonow.ui.main
-
-import android.widget.Toast
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Checklist
@@ -28,15 +23,14 @@ import com.noitacilppa.okonow.ui.TodoViewModel
 import com.noitacilppa.okonow.ui.home.HomeTodayScreen
 import com.noitacilppa.okonow.ui.profile.ProfileScreen
 import com.noitacilppa.okonow.ui.task.AddTaskBottomSheet
-import com.noitacilppa.okonow.ui.theme.Background
-import com.noitacilppa.okonow.ui.theme.OnSurface
-import com.noitacilppa.okonow.ui.theme.OnSurfaceVariant
-import com.noitacilppa.okonow.ui.theme.PrimaryPurple
+import com.noitacilppa.okonow.ui.theme.*
 import com.noitacilppa.okonow.ui.focus.FocusScreen
 import com.noitacilppa.okonow.ui.tasklist.FullTaskListScreen
 import com.noitacilppa.okonow.ui.tasklist.TaskListTab
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.background
 import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.hazeEffect
 import dev.chrisbanes.haze.hazeSource
 
 private enum class MainTab(
@@ -69,47 +63,63 @@ fun MainShell(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         bottomBar = {
             if (!showAddTask && editingTask == null && !showFullTaskList) {
-                Surface(
+                Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(topStart = 48.dp, topEnd = 48.dp)),
-                    color = Background.copy(alpha = 0.88f),
-                    tonalElevation = 8.dp
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp, vertical = 24.dp + 8.dp) // Elevate for premium floating feel
                 ) {
-                    NavigationBar(
-                        containerColor = Color.Transparent,
-                        tonalElevation = 0.dp
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(80.dp) // Exact M3 height for better centering
+                            .clip(RoundedCornerShape(40.dp))
+                            .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(40.dp)),
+                        color = SurfaceContainer.copy(alpha = 0.85f),
+                        tonalElevation = 8.dp
                     ) {
-                        MainTab.entries.forEach { tab ->
-                            val selected = tab.saveKey == selectedTab
-                            NavigationBarItem(
-                                selected = selected,
-                                onClick = { 
-                                    selectedTab = tab.saveKey 
-                                    showFullTaskList = false
-                                },
-                                icon = {
-                                    Icon(
-                                        imageVector = tab.icon,
-                                        contentDescription = tab.label,
-                                        modifier = Modifier
+                        NavigationBar(
+                            containerColor = Color.Transparent,
+                            tonalElevation = 0.dp,
+                            windowInsets = WindowInsets(0, 0, 0, 0), // Disable insets to prevent shifting
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .hazeEffect(state = hazeState) {
+                                    backgroundColor = Background
+                                    blurRadius = 30.dp
+                                }
+                        ) {
+                            MainTab.entries.forEach { tab ->
+                                val selected = tab.saveKey == selectedTab
+                                NavigationBarItem(
+                                    selected = selected,
+                                    onClick = { 
+                                        selectedTab = tab.saveKey 
+                                        showFullTaskList = false
+                                    },
+                                    icon = {
+                                        Icon(
+                                            imageVector = tab.icon,
+                                            contentDescription = tab.label,
+                                            modifier = Modifier.size(26.dp)
+                                        )
+                                    },
+                                    label = {
+                                        Text(
+                                            tab.label.uppercase(),
+                                            fontSize = 9.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            letterSpacing = 1.sp
+                                        )
+                                    },
+                                    colors = NavigationBarItemDefaults.colors(
+                                        selectedIconColor = PrimaryPurple,
+                                        selectedTextColor = PrimaryPurple,
+                                        unselectedIconColor = OnSurface.copy(alpha = 0.4f),
+                                        unselectedTextColor = OnSurface.copy(alpha = 0.4f),
+                                        indicatorColor = PrimaryPurple.copy(alpha = 0.12f)
                                     )
-                                },
-                                label = {
-                                    Text(
-                                        tab.label.uppercase(),
-                                        fontSize = 10.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        letterSpacing = 1.sp
-                                    )
-                                },
-                                colors = NavigationBarItemDefaults.colors(
-                                    selectedIconColor = PrimaryPurple,
-                                    selectedTextColor = PrimaryPurple,
-                                    unselectedIconColor = OnSurface.copy(alpha = 0.4f),
-                                    unselectedTextColor = OnSurface.copy(alpha = 0.4f),
-                                    indicatorColor = Color.Transparent
                                 )
-                            )
+                            }
                         }
                     }
                 }
@@ -187,12 +197,6 @@ fun MainShell(
                         } else {
                             viewModel.addTask(title, description, subtasks, attachmentUri, tag, endTime, reminderTime)
                         }
-                        
-                        Toast.makeText(
-                            context,
-                            if (editingTask != null) "Task updated" else "Task saved",
-                            Toast.LENGTH_SHORT
-                        ).show()
                     },
                     hazeState = hazeState
                 )
