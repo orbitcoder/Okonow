@@ -28,7 +28,13 @@ import androidx.compose.material.icons.filled.Event
 import androidx.compose.material.icons.filled.Label
 import androidx.compose.material.icons.filled.PriorityHigh
 import androidx.compose.material.icons.outlined.AutoAwesome
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -63,10 +69,13 @@ import dev.chrisbanes.haze.hazeEffect
 import dev.chrisbanes.haze.HazeStyle
 import dev.chrisbanes.haze.HazeTint
 import kotlinx.coroutines.delay
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 private val SheetTopRadius = 24.dp
 
-@OptIn(ExperimentalLayoutApi::class)
+@OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
 @Composable
 fun AddTaskBottomSheet(
     onDismiss: () -> Unit,
@@ -78,6 +87,9 @@ fun AddTaskBottomSheet(
     var attachmentUri by remember { mutableStateOf<Uri?>(null) }
     var isSubtaskMode by remember { mutableStateOf(false) }
     val subtasks = remember { mutableStateListOf<String>() }
+    
+    var selectedDateMillis by remember { mutableStateOf<Long?>(System.currentTimeMillis()) }
+    var showDatePicker by remember { mutableStateOf(false) }
     
     val titleFocusRequester = remember { FocusRequester() }
 
@@ -239,9 +251,17 @@ fun AddTaskBottomSheet(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 verticalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
+                                val dateText = remember(selectedDateMillis) {
+                                    selectedDateMillis?.let {
+                                        val sdf = SimpleDateFormat("MMM dd", Locale.getDefault())
+                                        sdf.format(Date(it))
+                                    } ?: "Today"
+                                }
+                                
                                 DetailPill(
                                     icon = { Icon(Icons.Default.CalendarMonth, null, tint = PrimaryPurple, modifier = Modifier.size(20.dp)) },
-                                    text = "Today"
+                                    text = dateText,
+                                    onClick = { showDatePicker = true }
                                 )
                                 DetailPill(
                                     icon = { Icon(Icons.Default.PriorityHigh, null, tint = PrimaryPurple, modifier = Modifier.size(20.dp)) },
@@ -283,6 +303,30 @@ fun AddTaskBottomSheet(
                         }
                     }
                 }
+            }
+        }
+        
+        if (showDatePicker) {
+            val datePickerState = rememberDatePickerState(
+                initialSelectedDateMillis = selectedDateMillis ?: System.currentTimeMillis()
+            )
+            DatePickerDialog(
+                onDismissRequest = { showDatePicker = false },
+                confirmButton = {
+                    TextButton(onClick = {
+                        selectedDateMillis = datePickerState.selectedDateMillis
+                        showDatePicker = false
+                    }) {
+                        Text("OK")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showDatePicker = false }) {
+                        Text("Cancel")
+                    }
+                }
+            ) {
+                DatePicker(state = datePickerState)
             }
         }
     }
