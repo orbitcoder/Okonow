@@ -1,5 +1,8 @@
 package com.noitacilppa.okonow.ui.task.components
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -32,7 +35,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
@@ -200,6 +202,8 @@ fun convertToHtml(text: String, boldRanges: List<IntRange>): String {
 fun TaskDescriptionInput(
     value: String,
     onValueChange: (String) -> Unit,
+    onAttachmentChange: (Uri?) -> Unit = {},
+    attachmentUri: Uri? = null,
     isSubtaskMode: Boolean = false,
     subtasks: List<String> = emptyList(),
     onSubtaskChange: (Int, String) -> Unit = { _, _ -> },
@@ -225,6 +229,12 @@ fun TaskDescriptionInput(
 
     var isBoldActive by remember { mutableStateOf(false) }
 
+    val filePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        onAttachmentChange(uri)
+    }
+
     fun updateInternalState(newValue: TextFieldValue, newRanges: List<IntRange>) {
         boldRanges = newRanges
         val annotated = buildAnnotatedString {
@@ -248,12 +258,6 @@ fun TaskDescriptionInput(
             updateInternalState(newValue, nextRanges)
         } else {
             internalValue = newValue
-            // Optional: Automatically toggle bold mode based on cursor position
-            val pos = newValue.selection.start
-            if (newValue.selection.collapsed) {
-                val isAtBold = boldRanges.any { pos > it.first && pos <= it.last + 1 }
-                // We don't force isBoldActive here to allow user to toggle it off manually
-            }
         }
     }
 
@@ -293,10 +297,39 @@ fun TaskDescriptionInput(
                     tint = if (isBoldActive) PrimaryPurple else OnSurfaceVariant
                 )
             }
-            IconButton(onClick = {}) {
-                Icon(Icons.Default.AttachFile, null, tint = OnSurfaceVariant)
+            IconButton(onClick = { filePickerLauncher.launch("*/*") }) {
+                Icon(
+                    Icons.Default.AttachFile, 
+                    null, 
+                    tint = if (attachmentUri != null) PrimaryPurple else OnSurfaceVariant
+                )
             }
         }
+
+        if (attachmentUri != null) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Icon(Icons.Default.AttachFile, null, tint = PrimaryPurple, modifier = Modifier.size(16.dp))
+                Text(
+                    text = attachmentUri.lastPathSegment ?: "File attached",
+                    fontSize = 12.sp,
+                    color = PrimaryPurple,
+                    maxLines = 1
+                )
+                IconButton(
+                    onClick = { onAttachmentChange(null) },
+                    modifier = Modifier.size(24.dp)
+                ) {
+                    Icon(Icons.Default.Add, null, modifier = Modifier.size(16.dp)) // Using Add as a placeholder for clear
+                }
+            }
+        }
+
         Box(
             modifier = Modifier
                 .fillMaxWidth()

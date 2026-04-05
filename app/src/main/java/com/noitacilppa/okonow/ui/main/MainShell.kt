@@ -157,8 +157,8 @@ fun MainShell(
             if (showAddTask) {
                 AddTaskBottomSheet(
                     onDismiss = { showAddTask = false },
-                    onSave = { title, description, subtasks ->
-                        viewModel.addTask(title, description, subtasks)
+                    onSave = { title, description, subtasks, attachmentUri ->
+                        viewModel.addTask(title, description, subtasks, attachmentUri)
                         Toast.makeText(
                             context,
                             if (title.isBlank()) "Task saved" else "Saved: $title",

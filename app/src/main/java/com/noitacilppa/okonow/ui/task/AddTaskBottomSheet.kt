@@ -1,5 +1,6 @@
 package com.noitacilppa.okonow.ui.task
 
+import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -58,7 +59,7 @@ import com.noitacilppa.okonow.ui.theme.SecondaryTeal
 import com.noitacilppa.okonow.ui.theme.SurfaceContainer
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeSource
-import dev.chrisbanes.haze.hazeChild
+import dev.chrisbanes.haze.hazeEffect
 import dev.chrisbanes.haze.HazeStyle
 import dev.chrisbanes.haze.HazeTint
 import kotlinx.coroutines.delay
@@ -69,11 +70,12 @@ private val SheetTopRadius = 24.dp
 @Composable
 fun AddTaskBottomSheet(
     onDismiss: () -> Unit,
-    onSave: (String, String, List<String>) -> Unit,
+    onSave: (String, String, List<String>, String?) -> Unit,
     hazeState: HazeState
 ) {
     var title by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
+    var attachmentUri by remember { mutableStateOf<Uri?>(null) }
     var isSubtaskMode by remember { mutableStateOf(false) }
     val subtasks = remember { mutableStateListOf<String>() }
     
@@ -91,7 +93,7 @@ fun AddTaskBottomSheet(
         keyboard?.show()
     }
 
-    // Root container (Removed .haze() to avoid conflict with MainShell's hazeSource)
+    // Root container
     Box(
         modifier = Modifier.fillMaxSize()
     ) {
@@ -99,14 +101,11 @@ fun AddTaskBottomSheet(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .hazeChild(
-                    state = hazeState,
-                    style = HazeStyle(
-                        backgroundColor = Background,
-                        blurRadius = 20.dp,
-                        tints = listOf(HazeTint(Color.Black.copy(alpha = 0.4f)))
-                    )
-                )
+                .hazeEffect(state = hazeState) {
+                    backgroundColor = Background
+                    blurRadius = 20.dp
+                    tints = listOf(HazeTint(Color.Black.copy(alpha = 0.4f)))
+                }
         )
 
         // 2. Scrim
@@ -134,7 +133,7 @@ fun AddTaskBottomSheet(
                     .fillMaxWidth()
                     .height(sheetHeight)
             ) {
-                // 3. Decorative Background Glows (Captured as sources so they can be blurred by the sheet)
+                // 3. Decorative Background Glows
                 Box(
                     modifier = Modifier
                         .align(Alignment.TopEnd)
@@ -159,14 +158,11 @@ fun AddTaskBottomSheet(
                     modifier = Modifier
                         .fillMaxSize()
                         .clip(RoundedCornerShape(topStart = SheetTopRadius, topEnd = SheetTopRadius))
-                        .hazeChild(
-                            state = hazeState,
-                            style = HazeStyle(
-                                backgroundColor = Background,
-                                blurRadius = 30.dp,
-                                tints = listOf(HazeTint(Background.copy(alpha = 0.7f)))
-                            )
-                        )
+                        .hazeEffect(state = hazeState) {
+                            backgroundColor = Background
+                            blurRadius = 30.dp
+                            tints = listOf(HazeTint(Background.copy(alpha = 0.7f)))
+                        }
                         .background(
                             Brush.verticalGradient(
                                 listOf(
@@ -203,6 +199,8 @@ fun AddTaskBottomSheet(
                             TaskDescriptionInput(
                                 value = description,
                                 onValueChange = { description = it },
+                                onAttachmentChange = { attachmentUri = it },
+                                attachmentUri = attachmentUri,
                                 isSubtaskMode = isSubtaskMode,
                                 subtasks = subtasks,
                                 onSubtaskChange = { index, newValue -> subtasks[index] = newValue },
@@ -257,7 +255,7 @@ fun AddTaskBottomSheet(
 
                             TaskActionButtons(
                                 onSave = {
-                                    onSave(title, description, subtasks.toList())
+                                    onSave(title, description, subtasks.toList(), attachmentUri?.toString())
                                     onDismiss()
                                 },
                                 onDelete = onDismiss

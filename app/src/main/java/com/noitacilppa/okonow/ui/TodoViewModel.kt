@@ -31,14 +31,20 @@ class TodoViewModel(private val todoRepository: TodoRepository) : ViewModel() {
                 initialValue = TodoUiState()
             )
 
-    fun addTask(title: String, description: String, subtasks: List<String> = emptyList()) {
+    fun addTask(
+        title: String,
+        description: String,
+        subtasks: List<String> = emptyList(),
+        attachmentUri: String? = null
+    ) {
         if (title.isBlank()) return
         viewModelScope.launch {
             val taskId = todoRepository.insertTask(
                 Task(
                     userId = currentUserId,
                     title = title,
-                    details = description
+                    details = description,
+                    attachmentUri = attachmentUri
                 )
             )
             if (subtasks.isNotEmpty()) {

@@ -28,6 +28,7 @@ data class Task(
     val userId: Long,
     val title: String,
     val details: String, // Supports HTML
+    val attachmentUri: String? = null, // URI of the attached file
     val contentFormat: ContentFormat = ContentFormat.PARAGRAPH,
     val priority: Priority = Priority.MEDIUM,
     val startTime: Date? = null,
