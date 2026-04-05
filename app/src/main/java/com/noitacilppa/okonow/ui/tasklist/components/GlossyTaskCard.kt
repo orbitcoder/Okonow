@@ -83,7 +83,8 @@ fun GlossyTaskCard(
     reminderTime: Date? = null,
     taskDate: Date? = null,
     initialChecked: Boolean = false,
-    onCheckedChange: (Boolean) -> Unit = {}
+    onCheckedChange: (Boolean) -> Unit = {},
+    onClick: () -> Unit = {}
 ) {
     val priorityColors = getPriorityColors(priority)
     // Keep internal state for immediate UI feedback if desired, 
@@ -103,7 +104,7 @@ fun GlossyTaskCard(
                 )
             )
             .border(1.dp, OutlineVariant.copy(alpha = 0.15f), shape)
-            .clickable { onCheckedChange(!initialChecked) }
+            .clickable { onClick() }
             .padding(20.dp)
     ) {
         Row(
@@ -121,7 +122,8 @@ fun GlossyTaskCard(
                         2.dp,
                         if (initialChecked) checkboxAccent else OnSurfaceVariant.copy(alpha = 0.3f),
                         RoundedCornerShape(6.dp)
-                    ),
+                    )
+                    .clickable { onCheckedChange(!initialChecked) },
                 contentAlignment = Alignment.Center
             ) {
                 if (initialChecked) {

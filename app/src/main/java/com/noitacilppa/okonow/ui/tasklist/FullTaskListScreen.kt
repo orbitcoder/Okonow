@@ -21,6 +21,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.noitacilppa.okonow.data.TaskDetailed
 import com.noitacilppa.okonow.ui.TodoViewModel
 import com.noitacilppa.okonow.ui.tasklist.components.GlossyTaskCard
 import com.noitacilppa.okonow.ui.theme.*
@@ -36,6 +37,7 @@ fun FullTaskListScreen(
     modifier: Modifier = Modifier,
     onBack: () -> Unit,
     viewModel: TodoViewModel,
+    onTaskClick: (TaskDetailed) -> Unit,
     initialTab: TaskListTab = TaskListTab.UPCOMING
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -162,7 +164,8 @@ fun FullTaskListScreen(
                         reminderTime = task.reminderTime,
                         taskDate = task.endTime,
                         initialChecked = task.isCompleted,
-                        onCheckedChange = { viewModel.toggleTaskDone(task) }
+                        onCheckedChange = { viewModel.toggleTaskDone(task) },
+                        onClick = { onTaskClick(taskItem) }
                     )
                 }
             }

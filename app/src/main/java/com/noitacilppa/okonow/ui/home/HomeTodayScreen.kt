@@ -25,6 +25,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import com.noitacilppa.okonow.data.TaskDetailed
 import com.noitacilppa.okonow.data.UserPreferences
 import com.noitacilppa.okonow.ui.TodoViewModel
 import com.noitacilppa.okonow.ui.home.components.*
@@ -47,6 +48,7 @@ fun HomeTodayScreen(
     onSettings: () -> Unit = {},
     onSeeAllTasks: (TaskListTab) -> Unit = {},
     onAddTask: () -> Unit = {},
+    onTaskClick: (TaskDetailed) -> Unit = {},
     viewModel: TodoViewModel
 ) {
     val context = LocalContext.current
@@ -239,7 +241,8 @@ fun HomeTodayScreen(
                                                     recentlyCompletedIds.remove(task.id)
                                                     exitingIds.remove(task.id)
                                                 }
-                                            }
+                                            },
+                                            onClick = { onTaskClick(taskItem) }
                                         )
                                     }
                                 }

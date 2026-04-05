@@ -9,6 +9,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.DateRange
@@ -142,7 +144,7 @@ fun FocusTimerSection() {
                         .clickable { },
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(imageVector = Icons.Default.Refresh, contentDescription = "Refresh", tint = OnSurface)
+                    Icon(imageVector = Icons.Default.Add, contentDescription = "add thirty min", tint = OnSurface)
                 }
 
                 Box(
@@ -170,7 +172,7 @@ fun FocusTimerSection() {
                         .clickable { },
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(imageVector = Icons.Default.SkipNext, contentDescription = "Skip Next", tint = OnSurface)
+                    Icon(imageVector = Icons.Default.Check, contentDescription = "Mark timer complete", tint = OnSurface)
                 }
             }
         }

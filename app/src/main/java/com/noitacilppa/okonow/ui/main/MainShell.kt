@@ -22,6 +22,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.noitacilppa.okonow.data.TaskDetailed
 import com.noitacilppa.okonow.ui.AppViewModelProvider
 import com.noitacilppa.okonow.ui.TodoViewModel
 import com.noitacilppa.okonow.ui.home.HomeTodayScreen
@@ -55,6 +56,7 @@ fun MainShell(
 ) {
     var selectedTab by rememberSaveable { mutableStateOf(MainTab.TASKS.saveKey) }
     var showAddTask by remember { mutableStateOf(false) }
+    var editingTask by remember { mutableStateOf<TaskDetailed?>(null) }
     var showFullTaskList by remember { mutableStateOf(false) }
     var initialTaskListTab by remember { mutableStateOf(TaskListTab.UPCOMING) }
     val hazeState = remember { HazeState() }
@@ -66,7 +68,7 @@ fun MainShell(
         containerColor = Background,
         snackbarHost = { SnackbarHost(snackbarHostState) },
         bottomBar = {
-            if (!showAddTask && !showFullTaskList) {
+            if (!showAddTask && editingTask == null && !showFullTaskList) {
                 Surface(
                     modifier = Modifier
                         .clip(RoundedCornerShape(topStart = 48.dp, topEnd = 48.dp)),
@@ -138,6 +140,7 @@ fun MainShell(
                         modifier = Modifier.fillMaxSize(),
                         onBack = { showFullTaskList = false },
                         viewModel = viewModel,
+                        onTaskClick = { editingTask = it },
                         initialTab = initialTaskListTab
                     )
                 } else {
@@ -150,6 +153,7 @@ fun MainShell(
                                 showFullTaskList = true
                             },
                             onAddTask = { showAddTask = true },
+                            onTaskClick = { editingTask = it },
                             viewModel = viewModel
                         )
                         MainTab.FOCUS.saveKey -> FocusScreen(Modifier.fillMaxSize())
@@ -161,14 +165,32 @@ fun MainShell(
                 }
             }
 
-            if (showAddTask) {
+            if (showAddTask || editingTask != null) {
                 AddTaskBottomSheet(
-                    onDismiss = { showAddTask = false },
+                    onDismiss = { 
+                        showAddTask = false
+                        editingTask = null
+                    },
+                    initialTask = editingTask,
                     onSave = { title, description, subtasks, attachmentUri, tag, endTime, reminderTime ->
-                        viewModel.addTask(title, description, subtasks, attachmentUri, tag, endTime, reminderTime)
+                        if (editingTask != null) {
+                            viewModel.updateTask(
+                                taskId = editingTask!!.task.id,
+                                title = title,
+                                description = description,
+                                subtasks = subtasks,
+                                attachmentUri = attachmentUri,
+                                tag = tag,
+                                endTime = endTime,
+                                reminderTime = reminderTime
+                            )
+                        } else {
+                            viewModel.addTask(title, description, subtasks, attachmentUri, tag, endTime, reminderTime)
+                        }
+                        
                         Toast.makeText(
                             context,
-                            if (title.isBlank()) "Task saved" else "Saved: $title",
+                            if (editingTask != null) "Task updated" else "Task saved",
                             Toast.LENGTH_SHORT
                         ).show()
                     },

@@ -49,6 +49,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import com.noitacilppa.okonow.data.TaskDetailed
 import com.noitacilppa.okonow.ui.task.components.BottomSheetHandle
 import com.noitacilppa.okonow.ui.task.components.DetailPill
 import com.noitacilppa.okonow.ui.task.components.SuggestionChip
@@ -73,6 +74,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.time.LocalTime
+import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Calendar
 import java.util.Date
@@ -90,22 +92,37 @@ data class SubtaskState(
 fun AddTaskBottomSheet(
     onDismiss: () -> Unit,
     onSave: (String, String, List<SubtaskState>, String?, String, Date?, Date?) -> Unit,
-    hazeState: HazeState
+    hazeState: HazeState,
+    initialTask: TaskDetailed? = null
 ) {
     // 1. Logic & State
-    var title by remember { mutableStateOf("") }
-    var description by remember { mutableStateOf("") }
-    var attachmentUri by remember { mutableStateOf<Uri?>(null) }
-    var isSubtaskMode by remember { mutableStateOf(false) }
-    val subtasks = remember { mutableStateListOf<SubtaskState>() }
+    var title by remember { mutableStateOf(initialTask?.task?.title ?: "") }
+    var description by remember { mutableStateOf(initialTask?.task?.details ?: "") }
+    var attachmentUri by remember { mutableStateOf<Uri?>(initialTask?.task?.attachmentUri?.let { Uri.parse(it) }) }
+    var isSubtaskMode by remember { mutableStateOf(initialTask?.subtasks?.isNotEmpty() == true) }
+    val subtasks = remember { 
+        mutableStateListOf<SubtaskState>().apply {
+            initialTask?.subtasks?.forEach { 
+                add(SubtaskState(it.description, it.isCompleted))
+            }
+        }
+    }
     
-    var selectedDateMillis by remember { mutableStateOf<Long?>(System.currentTimeMillis()) }
+    var selectedDateMillis by remember { 
+        mutableStateOf<Long?>(initialTask?.task?.endTime?.time ?: System.currentTimeMillis()) 
+    }
     var showDatePicker by remember { mutableStateOf(false) }
 
-    var selectedTag by remember { mutableStateOf("Inbox") }
+    var selectedTag by remember { 
+        mutableStateOf(initialTask?.tags?.firstOrNull()?.name ?: "Inbox") 
+    }
     var showTagPicker by remember { mutableStateOf(false) }
 
-    var selectedTime by remember { mutableStateOf<LocalTime?>(null) }
+    var selectedTime by remember { 
+        mutableStateOf<LocalTime?>(initialTask?.task?.reminderTime?.let {
+            it.toInstant().atZone(ZoneId.systemDefault()).toLocalTime()
+        }) 
+    }
     var showTimePicker by remember { mutableStateOf(false) }
     
     val titleFocusRequester = remember { FocusRequester() }
@@ -153,8 +170,10 @@ fun AddTaskBottomSheet(
     LaunchedEffect(isVisible) {
         if (isVisible) {
             delay(150) // Wait for slide to settle slightly
-            titleFocusRequester.requestFocus()
-            keyboard?.show()
+            if (title.isEmpty()) {
+                titleFocusRequester.requestFocus()
+                keyboard?.show()
+            }
         }
     }
 
@@ -253,7 +272,7 @@ fun AddTaskBottomSheet(
                             verticalArrangement = Arrangement.spacedBy(24.dp)
                         ) {
                             TaskHeader(
-                                title = "New Task",
+                                title = if (initialTask == null) "New Task" else "Edit Task",
                                 onDismiss = { dismissWithAnimation() }
                             )
 
